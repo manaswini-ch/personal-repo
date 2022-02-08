@@ -1,0 +1,192 @@
+success_event_info_query(templateData)::=<<
+{
+  "input_data": $generate_metadata_input(templateData.query_input)$,
+   "sequential_templates":[
+       {
+         "query_template_group": "ingestion_templates|artifact_ingestion",
+         "query_template_name": "pipeline_success",
+         "query_output_key": "pipeline_success",
+         "query_type":"select"
+       },
+	   {
+         "query_template_group": "ingestion_templates|artifact_ingestion",
+         "query_template_name": "data_movement_success_info",
+         "query_output_key": "data_movement_success_info",
+         "query_type":"select"
+        },
+       {
+         "query_template_group": "ingestion_templates|artifact_ingestion",
+         "query_template_name": "get_success_event_info",
+         "query_output_key": "get_success_event_info",
+         "query_type":"select"
+        },
+		 {
+         "query_template_group": "ingestion_templates|artifact_ingestion",
+         "query_template_name": "success_event_flag_info",
+         "query_output_key": "success_event_flag_info",
+         "query_type":"select"
+        }	
+   ],
+   "output_keys":["pipeline_success","data_movement_success_info","get_success_event_info","success_event_flag_info"]
+}
+>>
+
+pipeline_success(templateData)::=<<
+select 
+case when status ='SUCCESS' then true
+else false
+end as is_success from nabu.checkpoint_status cs where 
+data_movement_id = $templateData.input_data.data_movement_id$ 
+and process_id = $templateData.input_data.process_id$
+and table_id  = $templateData.input_data.table_id$
+and valid_to_ts = '9999-12-31')
+>>
+
+data_movement_success_info(templateData)::=<<
+select (data_movement_additional_info ->>'destination_file_format') as destination_file_format,
+(data_movement_additional_info ->>'load_type') as load_type,
+(data_movement_additional_info ->>'metadataIndicator') as metadataIndicator,
+(data_movement_additional_info ->>'reconIndicator') as reconIndicator,
+from nabu.data_movement_physical dmp where data_movement_id = $templateData.input_data.data_movement_id$
+>>
+
+success_event_flag_info(templateData)::=<<
+select (data_movement_additional_info ->>'flag') as flag,
+from nabu.data_movement_physical dmp where data_movement_id = $templateData.input_data.data_movement_id$
+>>
+get_success_event_info(templateData)::=<<
+$if(first(templateData.pipeline_success).is_success)$
+{"eventType":"DataLoadEvent",
+ "dataset" : "$templateData.table_name$",
+ "loadType" : "$templateData.load_type$",
+ "metadataIndicator":"$templateData.metadataIndicator$",
+ "reconIndicator" : "$templateData.reconIndicator$",
+ "fileType": "$templateData.destination_file_format$",
+ "path" : $templateData.destination_path$,
+"query":"SELECT * from $templateData.schema_name$.$templateData.table_name$"}
+>>
+
+
+get_success_event_info_and_run_bash_script(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+ "bot_name": "DBOpsBot",
+ "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "success_event_info"
+  },
+
+  "bot_tasks": [
+    {
+      "task_name": "success_event_info",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+        "template_group": "common_templates|artifact_ingestion",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "ingestion_templates|artifact_ingestion",
+        "template_name": "success_event_info_query"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl": false,
+        "query_input": $templateData$
+      },
+      "output_message_templates": [
+        {
+          "template_group": "ingestion_flow|artifact_ingestion",
+          "template_name": "success_event_rest_api_script",
+		  "useIncomingData":true
+        },
+        {
+          "template_group": "common_templates|artifact_ingestion",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "common_templates|artifact_ingestion",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+
+success_event_rest_api_script(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "SparkScriptBot",
+  "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.SparkScriptBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "run_command_to_run_success_event_rest_api_job"
+  },
+    "bot_tasks": [
+    {
+      "task_name": "run_command_to_run_success_event_rest_api_job",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "common_templates|artifact_parallel_ingestion",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "ingestion_templates|artifact_parallel_ingestion",
+        "template_name": "command_to_run_success_event_script"
+      },
+      "input_data": {
+              "data": $templateData$,
+              "retry_attempt" : $parent_metadata.tags.retry_attempt$,
+              "flow_number" : $first(dataAsMap.query_input.table_metadata_output).flow_number$,
+              "data_movement_id" : $first(dataAsMap.query_input.table_metadata_output).data_movement_id$,
+              "where_condition" : "$first(dataAsMap.query_input.table_metadata_output).where_condition$",
+              "process_id" : $first(dataAsMap.query_input.table_metadata_output).process_id$,
+              "schema_drift_flag": $first(dataAsMap.query_input.table_metadata_output).schema_drift_flag$,
+              "ssh_host" : "$first(dataAsMap.query_input.spark_script_inputs).ssh_host$",
+              "ssh_username" : "$first(dataAsMap.query_input.spark_script_inputs).ssh_username$",
+              "engine_path" : "$first(dataAsMap.query_input.spark_script_inputs).engine_path$",
+              "spark_location" : "$first(dataAsMap.query_input.spark_script_inputs).spark_location$",
+			  "template_group": "ingestion_templates|artifact_parallel_ingestion",
+			  "spark_application_template" : "insert_spark_application_details",
+			  "get_success_event_info" : "$first(dataAsMap.query_input.spark_script_inputs).get_success_event_info$",
+			  "destination_path": "abfss://$first(dataAsMap.query_input.table_metadata_output).adls_gen2_container$/$first(dataAsMap.query_input.table_metadata_output).upper_case_destination_table_name$/$first(dataAsMap.query_input.table_metadata_output).destination_folder_format$"
+			  "success_event_flag" : "$first(dataAsMap.query_input.spark_script_inputs).success_event_flag_info$",
+       },
+      "output_message_templates": [
+        {
+          "template_group": "common_templates|artifact_parallel_ingestion",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "common_templates|artifact_parallel_ingestion",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+
+command_to_run_success_event_script(templateData)::=<<
+["sh","../scripts/ingestion/run_api_call_job.sh","$templateData.data.query_input.get_success_event_info$","$templateData.data.query_input.success_event_flag$"]
+
+
+//json
+"loadType" : "Full",
+"metadataIndicator":"Y",
+"reconIndicator" : "Y",
+"success_event_flag" : "kafka"
