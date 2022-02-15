@@ -1,0 +1,3 @@
+https://jmaven.com/dependency/com.google.cloud/gcloud-java
+
+https://jmaven.com/dependency/com.google.gcloud/gcloud-java-pom
