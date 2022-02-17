@@ -8,3 +8,6 @@ https://jmaven.com/dependency/com.google.gcloud/gcloud-java-pom
     <artifactId>gcloud-java-core</artifactId>
     <version>0.2.8</version>
 </dependency>
+
+def createQuery(query:String,parameters:List[String]) =
+  parameters.map(partition => s"$query partition $partition")
