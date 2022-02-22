@@ -1,7 +1,37 @@
-<!-- https://mvnrepository.com/artifact/org.apache.spark/spark-sql -->
-<dependency>
-<groupId>org.apache.spark</groupId>
-<artifactId>spark-sql_2.13</artifactId>
-<version>3.2.1</version>
-<scope>provided</scope>
-</dependency>
+import com.github.music.of.the.ainur.almaren.builder.Core.Implicit
+import com.github.music.of.the.ainur.almaren.Almaren
+
+val almaren = Almaren("App Name")
+
+val spark = almaren.spark
+.master("local[*]")
+.config("spark.sql.shuffle.partitions", "1")
+
+
+val query = "select * from schema.pappuCharu"
+val df=almaren.builder.sourceJdbc("jdbc:postgresql://w3.devpsql.modak.com/nabu_v3","org.postgresql.Driver","""
+select
+case when sub_partition_name is not null then sub_partition_name
+else partition_name
+end as partition_subpartition_name
+from
+(select
+t.schema_name,t.table_name,t.partition_name,t2.sub_partition_name
+from (select pti.schema_name ,pi2.partition_name ,
+pti.partition_type,pti.table_id,pti.table_name
+from nabu.partition_table_info pti
+left join nabu.partitions_info pi2 on pti.table_id = pi2.table_id
+where pti.table_id in (13219134) and pti.valid_to_ts = '9999-12-31' and pi2.valid_to_ts = '9999-12-31' ) t
+left join
+(select sub_partition_name,spi.partition_name from nabu.sub_partitions_info spi
+where spi.table_id in (13219134) and spi.valid_to_ts = '9999-12-31') t2 on t.partition_name = t2.partition_name) t3""",Some("op0910"),Some("WHyXZ2ch")).batch
+
+df.show(false)
+df.dtypes
+val df1=df.select("partition_subpartition_name").map(_.getString(0)).collect().toList
+createQuery(query,df1)
+df1.foreach { x => print(x)}
+
+
+def createQuery(query:String,parameters:List[String]) =
+parameters.map(partition => s"$query partition $partition")
