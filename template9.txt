@@ -11,3 +11,8 @@ https://jmaven.com/dependency/com.google.gcloud/gcloud-java-pom
 
 def createQuery(query:String,parameters:List[String]) =
   parameters.map(partition => s"$query partition $partition")
+  
+ 
+http://localhost:port/fireshots/nabu/sel/sq/restCatalog/getAllColumnsWithTableId
+
+
