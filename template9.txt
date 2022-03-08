@@ -15,4 +15,9 @@ def createQuery(query:String,parameters:List[String]) =
  
 http://localhost:port/fireshots/nabu/sel/sq/restCatalog/getAllColumnsWithTableId
 
+"{\"jwt_token\":\"eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJGSVJFU0hPVFNfQVBQTElDQVRJT04iLCJzZXNzaW9uX2lkIjoyNTA4MjA0MzksImV4cCI6MTY0NjI2MzI3MywidXNlcklkIjoiYm90cy1zcnYtYWNjb3VudCIsImlhdCI6MTY0NjI0MTY3M30.Gzma7sh3PayADIXyDe9xBrXXU1VaOyh3xEdQYZhMFRuOCq6oXxP83Yca08AZG05MKZtinGVyleu3WqLnzK1t57h92IbfcY3bEU3p6hjUvTHUQIWxFOVJOVJrrcP_6zGjajrf0-4KpEEH5hZReoz7lW3U4F5UquDpbM1wx4YvvnvTpUqs9vvfAVR-WzJwVb1804eTT8aWd3zRu1dKb8DwXz-gNtEIhdn8EsyD6P9RgG1cgaN1sA7RIJjn5pNJxCnaFnmE4TIAYwQlEfMsQ31SkF7WCZyRVmQ08rZ1sxOuMKTLMLaQegz3xShyUEIO-M9y_-hlLp-x85sqkBnUYJGMHg\",
+                \"destination_credential_id\": 98 ,
+                \"destination_credential_type_id\": 5,
+                \"data\":\"[{\"DATA_PRECISION\":null}]\"}";
+
 
