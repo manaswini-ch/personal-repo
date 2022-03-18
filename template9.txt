@@ -19,5 +19,16 @@ http://localhost:port/fireshots/nabu/sel/sq/restCatalog/getAllColumnsWithTableId
                 \"destination_credential_id\": 98 ,
                 \"destination_credential_type_id\": 5,
                 \"data\":\"[{\"DATA_PRECISION\":null}]\"}";
+                
+                
+                SonarQube(previously known as Sonar) is?
+SonarQube is open-source for continuous inspection of code quality. Sonar is a web based code quality analysis tool for MAVEN based JAVA projects. It covers a wide area of code quality checkpoints which include: Architecture & Design, Complexity, Duplications, Coding Rules, Potential Bugs, Unit test etc. It offers reports like
+Duplicated code
+Coding Standards
+Unit Tests
+Code Coverage
+Code Complexity
+Potential Bugs
+Comments
 
 
