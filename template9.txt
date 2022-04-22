@@ -1,34 +1,61 @@
-https://jmaven.com/dependency/com.google.cloud/gcloud-java
-
-https://jmaven.com/dependency/com.google.gcloud/gcloud-java-pom
-
-<!-- https://mvnrepository.com/artifact/com.google.cloud/gcloud-java-core -->
 <dependency>
-    <groupId>com.google.cloud</groupId>
-    <artifactId>gcloud-java-core</artifactId>
-    <version>0.2.8</version>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-api</artifactId>
+    <version>1.7.30</version>
+</dependency>
+<dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.9.8</version>
+</dependency>
+<dependency>
+    <groupId>org.antlr</groupId>
+    <artifactId>ST4</artifactId>
+    <version>4.3.1</version>
+</dependency>
+<dependency>
+    <groupId>log4j</groupId>
+    <artifactId>log4j</artifactId>
+    <version>1.2.17</version>
+</dependency>
+<dependency>
+    <groupId>com.googlecode.json-simple</groupId>
+    <artifactId>json-simple</artifactId>
+    <version>1.1</version>
+</dependency>
+<dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <version>42.2.20</version>
 </dependency>
 
-def createQuery(query:String,parameters:List[String]) =
-  parameters.map(partition => s"$query partition $partition")
-  
- 
-http://localhost:port/fireshots/nabu/sel/sq/restCatalog/getAllColumnsWithTableId
-
-"{\"jwt_token\":\"eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJGSVJFU0hPVFNfQVBQTElDQVRJT04iLCJzZXNzaW9uX2lkIjoyNTA4MjA0MzksImV4cCI6MTY0NjI2MzI3MywidXNlcklkIjoiYm90cy1zcnYtYWNjb3VudCIsImlhdCI6MTY0NjI0MTY3M30.Gzma7sh3PayADIXyDe9xBrXXU1VaOyh3xEdQYZhMFRuOCq6oXxP83Yca08AZG05MKZtinGVyleu3WqLnzK1t57h92IbfcY3bEU3p6hjUvTHUQIWxFOVJOVJrrcP_6zGjajrf0-4KpEEH5hZReoz7lW3U4F5UquDpbM1wx4YvvnvTpUqs9vvfAVR-WzJwVb1804eTT8aWd3zRu1dKb8DwXz-gNtEIhdn8EsyD6P9RgG1cgaN1sA7RIJjn5pNJxCnaFnmE4TIAYwQlEfMsQ31SkF7WCZyRVmQ08rZ1sxOuMKTLMLaQegz3xShyUEIO-M9y_-hlLp-x85sqkBnUYJGMHg\",
-                \"destination_credential_id\": 98 ,
-                \"destination_credential_type_id\": 5,
-                \"data\":\"[{\"DATA_PRECISION\":null}]\"}";
-                
-                
-                SonarQube(previously known as Sonar) is?
-SonarQube is open-source for continuous inspection of code quality. Sonar is a web based code quality analysis tool for MAVEN based JAVA projects. It covers a wide area of code quality checkpoints which include: Architecture & Design, Complexity, Duplications, Coding Rules, Potential Bugs, Unit test etc. It offers reports like
-Duplicated code
-Coding Standards
-Unit Tests
-Code Coverage
-Code Complexity
-Potential Bugs
-Comments
-
-
+import org.stringtemplate.v4.ST;
+        import org.stringtemplate.v4.STGroup;
+        import org.stringtemplate.v4.STGroupFile;
+        import java.util.ArrayList;
+        import java.util.HashMap;
+        import java.util.Map;
+public class runner {
+    public static void main(String[] args) {
+        STGroup template = new STGroupFile("/home/vc2411/Downloads/string_templates/src/main/resources/example.stg",'$','$');
+        Map map1 = new HashMap<>();
+        map1.put("field_name","id");
+        map1.put("datatype_name","int");
+        map1.put("status",false);
+        Map map2 = new HashMap<>();
+        map2.put("field_name","name");
+        map2.put("datatype_name","desc");
+        map2.put("status",true);
+        Map map3 = new HashMap<>();
+        map3.put("field_name","salary");
+        map3.put("datatype_name","float");
+        map3.put("status",true);
+        ArrayList<Map<String,String>> column_metadata = new ArrayList<>();
+        column_metadata.add(map1);
+        column_metadata.add(map2);
+        column_metadata.add(map3);
+        ST query = template.getInstanceOf("query");
+        query.add("column_metadata",column_metadata);
+        System.out.println(query.render());
+    }
+}
