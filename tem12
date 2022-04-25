@@ -1,0 +1,12 @@
+jdbcPartitionSubPartitionGeneration(templateData)::=<<
+$if(first(templateData.table_partition_output).is_sub_partition)$
+$templateData.table_partition_output: {subpartitions | $generateSubPartitions(subpartitions,templateData)$};separator=","$
+$else$
+$templateData.table_partition_output: {partitions | $generatePartitions(partitions,templateData)$};separator=","$
+>>
+generateSubPartitions(subpartitions,templateData)::<<
+"($partitions.partition_name$)"
+>>
+generatePartitions(partitions,templateData)::<<
+"($subpartitions.sub_partition_name$)"
+>>
