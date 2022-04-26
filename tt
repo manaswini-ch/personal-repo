@@ -24,3 +24,4 @@ generatePartitions(partitions)::=<<
 
 val x=Random.shuffle(List($jdbcPartitionSubPartitionGeneration(templateData)$))
 
+=IF(Sheet1!A1 <> Sheet2!A1, "Sheet1:"&Sheet1!A1&" vs Sheet2:"&Sheet2!A1, "")
