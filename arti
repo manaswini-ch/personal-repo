@@ -1,0 +1,73 @@
+generate_almaren_artifact_for_jdbcParallel_adls_gen2(templateData)::=<<
+import scala.sys.process._
+import scala.util.Try
+import scala.util.{Failure, Success}
+import org.apache.log4j.{Level, Logger, LogManager}
+val logger = LogManager.getLogger("com.Artifact")
+logger.setLevel(Level.INFO)
+Try {
+import com.modak.common.token.Token
+import com.modak.checkpoint.Checkpoint
+import com.modak.common.Constants
+val inputJson = Token.parsedInputJson
+val checkpoint = Checkpoint(inputJson.processId,inputJson.dataplaceId, None, None, Some(inputJson.datamovementId))
+checkpoint.startDataMovement(inputJson.tableId)
+Try {
+import com.github.music.of.the.ainur.almaren.builder.Core.Implicit
+import com.github.music.of.the.ainur.almaren.Almaren
+import com.modak.common.token.Token
+import com.modak.common.token.Token.Ldap
+import com.modak.common.token.Token.AzureGen2
+import com.modak.encryption.MessageEncryptionUtil
+import com.github.music.of.the.ainur.almaren.jdbcparallel.SourceJdbcParallelConn.SourceJdbcParallelImplicit
+import com.modak.common.Util._
+import org.apache.spark._
+import org.apache.spark.sql._
+import scala.util.Random
+val almaren = Almaren("adls_gen2_parallel_ingestion")
+val spark = almaren.spark.getOrCreate()
+val staticQuery = SELECT $templateData.column_metadata_output:ApplyFunction();separator=","$ from $(first(templateData.metadata_info_of_source).schema_name)$.$(first(templateData.metadata_info_of_source).table_name)$
+def createPartitionQuery((query:String,parameters:List[String]) =
+parameters.map(partition => s"$query partition $partition")
+def createSubPartitionQuery((query:String,parameters:List[String]) =
+parameters.map(subpartition => s"$query subpartition $subpartition")
+spark.conf.set(s"fs.azure.account.key.\${AzureGen2.target.accountname}.dfs.core.windows.net", AzureGen2.target.accountkey)
+$if(first(templateData.table_metadata_output).is_azure_oauth)$
+spark.conf.set(s"fs.azure.account.auth.type.\${AzureOAuth.target.accountname}.dfs.core.windows.net", "OAuth")
+spark.conf.set(s"fs.azure.account.oauth.provider.type.\${AzureOAuth.target.accountname}.dfs.core.windows.net", "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider")
+spark.conf.set(s"fs.azure.account.oauth2.client.id.\${AzureOAuth.target.accountname}.dfs.core.windows.net", s"\${AzureOAuth.target.client_id}")
+spark.conf.set(s"fs.azure.account.oauth2.client.secret.\${AzureOAuth.target.accountname}.dfs.core.windows.net", s"\${AzureOAuth.target.client_secret}")
+spark.conf.set(s"fs.azure.account.oauth2.client.endpoint.\${AzureOAuth.target.accountname}.dfs.core.windows.net", s"https://login.microsoftonline.com/\${AzureOAuth.target.tenant_id}/oauth2/token")
+$else$
+spark.conf.set(s"fs.azure.account.key.\${AzureGen2.target.accountname}.dfs.core.windows.net", AzureGen2.target.accountkey)
+$endif$
+almaren.builder
+.sourceJdbcParallel($([first(templateData.table_metadata_output).source_type,"_source"])(templateData)$,
+$if(first(templateData.table_partition_output).is_sub_partition)$
+createSubPartitionQuery($staticQuery,Random.shuffle(List($([first(templateData.table_metadata_output).source_type"_jdbcParallelQueries"])(templateData)$)))
+$else$
+createPartitionQuery($staticQuery,Random.shuffle(List($([first(templateData.table_metadata_output).source_type"_jdbcParallelQueries"])(templateData)$)))
+$endif$,
+$first(templateData.get_spark_configs).parallel_threads$,
+Some(Ldap.source.username),Some(Ldap.source.password),Map("fetchsize" -> Constants.DB.fetchSize))
+.batch.write.format("$templateData.input_data.intermediate_type$").mode("overwrite").$([first(templateData
+.table_metadata_output).destination_type,"_destination_YYYY_MM_DD_HH_mm_SS_format"])(templateData)$
+} match {
+case Success(s) =>
+logger.info(s"Success \${inputJson.tableId}")
+checkpoint.endDatamovementWithSuccess(inputJson.tableId, verificationStatus = true)
+case Failure(f) =>
+logger.error(s"Failed \${inputJson.tableId}")
+logger.error(s"Error while ingestion", f)
+checkpoint.endDatamovementWithError(inputJson.tableId, f.getLocalizedMessage, verificationStatus = false)
+throw f
+} } match {
+case Success(s) => {
+logger.info(s"Ingestion Success")
+}
+case Failure (f) => {
+logger.error (s"Error while ingestion", f)
+throw f
+}
+}
+>>
