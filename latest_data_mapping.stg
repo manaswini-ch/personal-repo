@@ -1,0 +1,893 @@
+quotedFieldName(fieldName) ::= <<"$fieldName$">>
+
+unquotedFieldName(fieldName) ::= <<$fieldName$>>
+
+backTickFieldName(fieldName) ::= <<`$fieldName$`>>
+
+hive_jdbcQuery(templateData)::=<<
+            SELECT
+            | $templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$
+            $if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns();separator=",\n | "$$endif$
+            $if(first(templateData.incremental_max_columns_with_column_ids).column_name)$,$templateData.incremental_max_columns_with_column_ids:incrementalColumns();separator=",\n | "$$endif$
+            | from $first(templateData.table_metadata_output).schema_name$.$first(templateData.table_metadata_output).table_name$ $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ where $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$
+>>
+
+hive_clusterQuery(templateData)::=<<
+            SELECT
+            | $templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$
+            $if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns();separator=",\n | "$$endif$
+            | from $first(templateData.table_metadata_output).schema_name$.$first(templateData.table_metadata_output).table_name$
+>>
+
+oracle_jdbcQuery(templateData)::=<<
+            SELECT
+            | $templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$
+            $if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns_oracle();separator=",\n | "$$endif$
+            $if(first(templateData.incremental_max_columns_with_column_ids).column_name)$,$templateData.incremental_max_columns_with_column_ids:incrementalColumns();separator=",\n | "$$endif$
+            | from $first(templateData.table_metadata_output).schema_name$."$first(templateData.table_metadata_output).table_name$" $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ where $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$
+>>
+
+sap_hana_jdbcQuery(templateData) ::=<<
+            SELECT
+            | $templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$
+            $if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns();separator=",\n | "$$endif$
+            | from $first(templateData.table_metadata_output).schema_name$.$first(templateData.table_metadata_output).table_name$
+>>
+
+bigquery_jdbcQuery(templateData)::=<<
+         SELECT
+        | $templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$
+		$if(first(templateData.incremental_max_columns_with_column_ids).column_name)$,$templateData.incremental_max_columns_with_column_ids:incrementalColumns();separator=",\n | "$$endif$
+		$if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns();separator=",\n | "$$endif$
+        | from `$first(templateData.table_metadata_output).schema_name$.$first(templateData.table_metadata_output).table_name$`
+$if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ where $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$
+>>
+
+partition_function_sql_server(templateData)::=<<
+def createPartitionQueries(query:String, parameters:List[String]) =
+parameters.map(partition => s"\$query where \$partition $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ and $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$")
+>>
+
+partition_function_hive(templateData)::=<<
+def createPartitionQueries(query:String, parameters:List[String]) =
+parameters.map(partition => s"\$query where \$partition $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ and $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$")
+>>
+
+partition_function_oracle(templateData)::=<<
+def createPartitionQueries(query:String, parameters:List[String]) =
+parameters.map(partition => s"\$query partition \$partition $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ where $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$")
+def createSubPartitionQueries(query:String, parameters:List[String]) =
+parameters.map(subpartition => s"\$query subpartition \$subpartition $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ where $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$")
+>>
+
+jdbcPartitionSubPartitionGeneration(templateData)::=<<
+$if(first(templateData.table_partition_output).is_sub_partition)$
+$templateData.table_partition_output:generateSubPartitions(templateData);separator=","$
+$else$
+$templateData.table_partition_output:generatePartitions(templateData);separator=","$
+$endif$
+>>
+
+generatePartitions(partitions,templateData)::=<<
+$(["generatePartitions_",first(templateData.table_metadata_output).source_type])(partitions)$
+>>
+
+generateSubPartitions(subpartitions,templateData)::=<<
+$(["generateSubPartitions_",first(templateData.table_metadata_output).source_type])(subpartitions)$
+>>
+
+generatePartitions_sql_server(partitions)::=<<
+$partitions.partition_position :{partition_num |"\$PARTITION.$partitions.partition_function_name$($partitions.column_name$) =  $partition_num$"}$
+>>
+
+generatePartitions_hive(partitions)::=<<
+"$partitions.column_value$"
+>>
+
+generateSubPartitions_oracle(subpartitions)::=<<
+"($subpartitions.sub_partition_name$)"
+>>
+
+generatePartitions_oracle(partitions)::=<<
+"($partitions.partition_name$)"
+>>
+
+sql_server_jdbcQuery(templateData) ::=<<
+            SELECT
+            | $templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$
+            $if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns();separator=",\n | "$$endif$
+            $if(first(templateData.incremental_max_columns_with_column_ids).column_name)$,$templateData.incremental_max_columns_with_column_ids:incrementalColumns();separator=",\n | "$$endif$
+            | from $first(templateData.table_metadata_output).schema_name$.[$first(templateData.table_metadata_output).table_name$] $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ where $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$
+>>
+
+mysql_jdbcQuery(templateData) ::=<<
+            SELECT
+            | $templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$
+            $if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns();separator=",\n | "$$endif$
+            $if(first(templateData.incremental_max_columns_with_column_ids).column_name)$,$templateData.incremental_max_columns_with_column_ids:incrementalColumns();separator=",\n | "$$endif$
+            | from $first(templateData.table_metadata_output).schema_name$.`$first(templateData.table_metadata_output).table_name$` $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ where $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$
+>>
+
+postgres_jdbcQuery(templateData)::=<<
+            SELECT
+            | $if(first(templateData.column_metadata_output).column_name)$$templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$ $else$$ApplyFunction(templateData.column_metadata_output)$$endif$
+            $if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns();separator=",\n | "$$endif$
+            $if(first(templateData.incremental_max_columns_with_column_ids).column_name)$,$templateData.incremental_max_columns_with_column_ids:incrementalColumns();separator=",\n | "$$endif$
+            | from $first(templateData.table_metadata_output).schema_name$."$first(templateData.table_metadata_output).table_name$" $if(first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause)$ where $first(templateData.updated_wherecondition_replaced_with_default_and_max_values).incremental_load_where_clause$$endif$
+>>
+
+postgres_destination_jdbcQuery(templateData)::=<<
+         SELECT * from $first(templateData.table_metadata_output).schema_name$."$first(templateData.table_metadata_output).table_name$"
+>>
+
+oracle_destination_jdbcQuery(templateData)::=<<
+         SELECT * from $first(templateData.table_metadata_output).schema_name$."$first(templateData.table_metadata_output).table_name$"
+>>
+
+redshift_relational_destination_jdbcQuery(templateData)::=<<
+         SELECT * from $first(templateData.table_metadata_output).schema_name$."$first(templateData.table_metadata_output).table_name$"
+>>
+
+ApplyFunction(col) ::=<<
+$if(col.is_source_casting_enabled)$ $col.source_stg_function$ $else$ $(col.source_stg_function)(col)$ $endif$
+>>
+
+tempColumns(col)::=<<
+    $col.sort_column_name$ as $col.sort_column_order_by_name$
+>>
+
+tempColumns_oracle(col)::=<<
+	$quotedFieldName(col.sort_column_name)$ as $quotedFieldName(col.sort_column_order_by_name)$
+>>
+
+incrementalColumns(col)::=<<
+$col.column_name$ as $col.incremental_max_column_name$
+>>
+
+AsIs(col) ::=<<
+$if(col.is_virtual)$ $col.column_name$$elseif(col.is_mysql || col.is_source_hive)$$backTickFieldName(col.column_name)$ as $backTickFieldName(col.field_name)$$else$$quotedFieldName(col.column_name)$ as $quotedFieldName(col.field_name)$$endif$
+>>
+
+AsIs_intermediate_stg(col) ::=<<
+$if(col.is_virtual)$ $col.column_name$$elseif(col.is_mysql || col.is_source_hive)$$backTickFieldName(col.column_name)$ as $backTickFieldName(col.field_name)$$else$$backTickFieldName(col.column_name)$ as $backTickFieldName(col.field_name)$$endif$
+>>
+
+VirtualToString(col) ::= << cast($unquotedFieldName(col.column_name)$ as string) as $unquotedFieldName(col.column_name)$>>
+
+VirtualToString_intermediate_stg(col) ::= << cast($backTickFieldName(col.column_name)$ as string) as $backTickFieldName(col.column_name)$>>
+
+VirtualtoDate(col) ::= << cast($unquotedFieldName(col.column_name)$ as date) as $unquotedFieldName(col.column_name)$>>
+
+VirtualtoDate_intermediate_stg(col) ::= << cast($backTickFieldName(col.column_name)$ as date) as $backTickFieldName(col.column_name)$>>
+
+VirtualToDouble(col) ::= << cast($unquotedFieldName(col.column_name)$ as double) as $unquotedFieldName(col.column_name)$>>
+
+VirtualToDouble_intermediate_stg(col) ::= << cast($backTickFieldName(col.column_name)$ as double) as $backTickFieldName(col.column_name)$>>
+
+parquet_AsIs(col)::=<<
+$unquotedFieldName(col.field_name)$ as $unquotedFieldName(col.field_name)$
+>>
+
+parquet_AsIs_intermediate_stg(col)::=<<
+$backTickFieldName(col.field_name)$ as $backTickFieldName(col.field_name)$
+>>
+
+default_AsIs(col)::=<<
+$unquotedFieldName(col.field_name)$ as $unquotedFieldName(col.field_name)$
+>>
+
+default_AsIs_intermediate_stg(col)::=<<
+$backTickFieldName(col.field_name)$ as $backTickFieldName(col.field_name)$
+>>
+
+UnsupportedType(col)::=<<
+'UNSUPPORTED_DATA_IN_SOURCE' as $unquotedFieldName(col.field_name)$
+>>
+
+UnsupportedType_intermediate_stg(col)::=<<
+`UNSUPPORTED_DATA_IN_SOURCE` as $backTickFieldName(col.field_name)$
+>>
+
+redshift_jdbcQuery(templateData)::=<<
+         SELECT
+        | $if(first(templateData.column_metadata_output).column_name)$$templateData.column_metadata_output:ApplyFunction();separator=",\n        | "$ $else$$ApplyFunction(templateData.column_metadata_output)$$endif$
+        $if(first(templateData.sort_columns_data).sort_column_name)$,$templateData.sort_columns_data:tempColumns();separator=",\n | "$$endif$
+        | from $first(templateData.table_metadata_output).schema_name$."$first(templateData.table_metadata_output).table_name$"
+>>
+
+RedshiftToTextConvert(col)::=<<
+$quotedFieldName(col.column_name)$::text as $unquotedFieldName(col.field_name)$
+>>
+
+HiveStringConvert(col) ::=<<
+cast($unquotedFieldName(col.column_name)$ as varchar(50)) as $unquotedFieldName(col.field_name)$
+>>
+
+HiveStringConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.column_name)$ as varchar(50)) as $backTickFieldName(col.field_name)$
+>>
+
+PostgresFloatConvert(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as float) as $unquotedFieldName(col.field_name)$
+>>
+
+PostgresNumericToString(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+BigqueryToString(col) ::=<<
+cast($unquotedFieldName(col.column_name)$ as string) as $unquotedFieldName(col.field_name)$
+>>
+
+SQLServerStringConvert(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(1005)) as $unquotedFieldName(col.field_name)$
+>>
+
+HiveFloatConvert(col) ::=<<
+cast($unquotedFieldName(col.column_name)$ as float) as $unquotedFieldName(col.field_name)$
+>>
+HiveFloatConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.column_name)$ as float) as $backTickFieldName(col.field_name)$
+>>
+
+OracleDecimalToBinaryDouble(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as binary_double) $quotedFieldName(col.field_name)$
+>>
+
+OracleRowIdToChar(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar2(18)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleLongRowIdToChar(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar2(255)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleTimestampConvert(col) ::=<<
+to_char($quotedFieldName(col.column_name)$, 'YYYY-MM-DD HH24:MI:SS.FF') as $quotedFieldName(col.field_name)$
+>>
+
+OracleTimestampZeroOffsetConvert(col) ::=<<
+to_char($quotedFieldName(col.column_name)$, 'YYYY-MM-DD HH24:MI:SS') as $quotedFieldName(col.field_name)$
+>>
+
+OracleTimestampLTZToUTCConvert(col)::=<<
+to_char(sys_extract_utc($quotedFieldName(col.column_name)$), 'YYYY-MM-DD HH24:MI:SS.FF') as $quotedFieldName(col.field_name)$
+>>
+
+ParquetStringToUTCTimestampConvert(col) ::=<<
+TO_TIMESTAMP($unquotedFieldName(col.field_name)$) as $unquotedFieldName(col.field_name)$
+>>
+
+OracleTimestampTZToUTCConvert(col)::=<<
+to_char(sys_extract_utc($quotedFieldName(col.column_name)$), 'YYYY-MM-DD HH24:MI:SS.FF') as $quotedFieldName(col.field_name)$
+>>
+
+ParquetTimestampZeroOffsetConvert(col)::=<<
+TO_TIMESTAMP($unquotedFieldName(col.field_name)$) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetTimestampZeroOffsetConvert_intermediate_stg(col)::=<<
+TO_TIMESTAMP($backTickFieldName(col.field_name)$) as $backTickFieldName(col.field_name)$
+>>
+
+OracleTimestampLTZToString(col) ::=<<
+$if(col.istimezone)$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS.FF TZR') as $quotedFieldName([col.field_name])$ , to_char(sys_extract_utc($quotedFieldName(col.column_name)$), 'YYYY-MM-DD HH24:MI:SS') as $quotedFieldName([col.field_name,"_utc"])$$else$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS.FF TZR') as $quotedFieldName([col.field_name])$$endif$
+>>
+
+OracleTimestampLTZZeroOffsetToString(col) ::=<<
+$if(col.istimezone)$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS TZR') as $quotedFieldName([col.field_name])$ , to_char(sys_extract_utc($quotedFieldName(col.column_name)$), 'YYYY-MM-DD HH24:MI:SS') as $quotedFieldName([col.field_name,"_utc"])$$else$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS TZR') as $quotedFieldName([col.field_name])$$endif$
+>>
+
+OracleTimestampTZToString(col) ::=<<
+$if(col.istimezone)$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS.FF TZR') as $quotedFieldName([col.field_name])$ , to_char(sys_extract_utc($quotedFieldName(col.column_name)$), 'YYYY-MM-DD HH24:MI:SS') as $quotedFieldName([col.field_name,"_utc"])$$else$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS.FF TZR') as $quotedFieldName([col.field_name])$$endif$
+>>
+
+OracleTimestampTZZeroOffsetToString(col)::=<<
+$if(col.istimezone)$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS TZR') as $quotedFieldName([col.field_name])$ , to_char(sys_extract_utc($quotedFieldName(col.column_name)$), 'YYYY-MM-DD HH24:MI:SS') as $quotedFieldName([col.field_name,"_utc"])$$else$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS TZR') as $quotedFieldName([col.field_name])$$endif$
+>>
+
+OracleTimestampLTZZeroOffsetConvert(col) ::=<<
+$if(col.istimezone)$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS TZR') as $quotedFieldName([col.field_name])$ , to_char(sys_extract_utc($quotedFieldName(col.column_name)$), 'YYYY-MM-DD HH24:MI:SS') as $quotedFieldName([col.field_name,"_utc"])$$else$to_char($quotedFieldName(col.column_name)$,'YYYY-MM-DD HH24:MI:SS TZR') as $quotedFieldName([col.field_name])$$endif$
+>>
+
+OracleDateConvert(col) ::=<<
+to_char($quotedFieldName(col.column_name)$, 'YYYY-MM-DD HH24:MI:SS') as $quotedFieldName(col.field_name)$
+>>
+
+OracleIntervalDaysToSecConvert(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar2(100)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleIntervalYearToMonConvert(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar2(100)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleXmlConvert(col) ::=<<
+To_CLOB($quotedFieldName(col.column_name)$) as $quotedFieldName(col.field_name)$
+>>
+
+OracleNumberToStringConvert(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(255)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleLongToStringConvert(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(255)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleFloatToStringConvert(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(255)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleDecimalToStringConvert(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(255)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleDecimalToString(col) ::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $quotedFieldName(col.field_name)$
+>>
+
+OracleRawToHexConvert(col) ::=<<
+RAWTOHEX($quotedFieldName(col.column_name)$) as $quotedFieldName(col.field_name)$
+>>
+
+OracleUrowIdToChar(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(18)) $quotedFieldName(col.field_name)$
+>>
+
+OracleBinaryDoubleToString(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(255)) $quotedFieldName(col.field_name)$
+>>
+
+sourceDf_transformation_query(templateData) ::=<<
+		SELECT
+		| $templateData.column_metadata_output:ApplyFunction_file();separator=",\n | "$
+		| from SOURCE_DF
+>>
+
+ApplyFunction_file(col) ::=<<
+ $backTickFieldName(col.column_name)$ as $unquotedFieldName(col.field_name)$
+>>
+
+destination_transformation_query_for_file(templateData) ::=<<
+         SELECT
+        | $templateData.column_metadata_output:destApplyFunction();separator=",\n        | "$
+        | from SOURCE_TABLE
+>>
+
+destination_transformation_query(templateData) ::=<<
+ $if((first(templateData.table_metadata_output).is_source_hive) && (!first(templateData.table_metadata_output).is_source_spark_hive))$
+ $destination_transformation_query_for_hive_jdbc(templateData)$
+ $else$
+ $destination_transformation_query_all_sources(templateData)$
+ $endif$
+>>
+
+applyPartition(col) ::=<<
+`$col.partition_column_name$`
+>>
+
+applySorting(col) ::=<<
+`$col.sort_column_order_by_name$` $col.sort_order$ $col.sort_null_value$
+>>
+
+destination_transformation_query_all_sources(templateData) ::=<<
+$if(first(templateData.remove_duplicates_data) || first(templateData.sort_columns_data))$
+        SELECT
+        | $templateData.destination_transformation_query_details_output:columnValue();separator=",\n        | "$
+			from(select $templateData.destination_transformation_query_details_output:destApplyFunction();separator=","$, row_number() over(
+			$if(first(templateData.remove_duplicates_data))$
+				partition by $templateData.remove_duplicates_data:applyPartition();separator=","$
+			$endif$
+        	$if(first(templateData.sort_columns_data))$
+				order by $templateData.sort_columns_data:applySorting();separator=","$
+			$endif$
+         	$if(first(templateData.remove_duplicates_data) || first(templateData.sort_columns_data))$
+				)as r
+			$endif$
+          from SOURCE_TABLE)rem where r=1
+
+$else$
+          SELECT
+          | $templateData.destination_transformation_query_details_output:destApplyFunction();separator=",\n        | "$
+          from SOURCE_TABLE
+$endif$
+>>
+
+
+destination_transformation_query_for_hive_jdbc(templateData) ::=<<
+$if(first(templateData.remove_duplicates_data) || first(templateData.sort_columns_data))$
+        SELECT
+        | $templateData.destination_transformation_query_details_output:columnValue();separator=",\n        | "$
+			from(select $templateData.destination_transformation_query_details_output:destApplyFunction();separator=","$, row_number() over(
+			$if(first(templateData.remove_duplicates_data))$
+				partition by $templateData.remove_duplicates_data:applyPartition();separator=","$
+			$endif$
+        	$if(first(templateData.sort_columns_data))$
+				order by $templateData.sort_columns_data:applySorting();separator=","$
+			$endif$
+         	$if(first(templateData.remove_duplicates_data) || first(templateData.sort_columns_data))$
+				)as r
+			$endif$
+          from SOURCE_TABLE)rem where r=1
+
+$else$
+          SELECT
+          | $templateData.destination_transformation_query_details_output:destApplyFunction();separator=",\n        | "$
+          from SOURCE_TABLE
+$endif$
+>>
+
+destApplyFunction(col)::=<<
+$([col.intermediate_stg_function,"_intermediate_stg"])(col)$
+>>
+
+columnValue(col)::=<<
+`$col.field_name$`
+>>
+
+ParquetBitToTinyInt(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as TINYINT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetByteToTinyIntConvert(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as TINYINT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetShortToSmallIntConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as SMALLINT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetDoubleToFloatConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as FLOAT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetDoubleToFloatConvert_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as FLOAT) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetLongTextToBinary(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as BINARY) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToDoubleConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as DOUBLE) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToDoubleConvert_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as DOUBLE) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToDecimalConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as DECIMAL($col.data_precision$,$col.data_scale$)) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToDecimalConvert_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as DECIMAL($col.data_precision$,$col.data_scale$)) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToDecimal(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as DECIMAL($col.data_precision$,$col.data_scale$)) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToIntegerConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as INT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetLongToBigIntConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as BIGINT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetTimestampConvert(col) ::=<<
+TO_TIMESTAMP($unquotedFieldName(col.field_name)$) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToTimestampConvert(col) ::=<<
+TO_TIMESTAMP($unquotedFieldName(col.field_name)$) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToTimestampConvert_intermediate_stg(col) ::=<<
+TO_TIMESTAMP($backTickFieldName(col.field_name)$) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetUTCTimestampConvert(col) ::=<<
+$if(col.istimezone)$$unquotedFieldName(col.field_name)$ as $unquotedFieldName(col.field_name)$,TO_TIMESTAMP($unquotedFieldName([col.column_name,"_utc"])$) as $unquotedFieldName([col.field_name,"_utc"])$$else$$unquotedFieldName(col.field_name)$ as $unquotedFieldName(col.field_name)$$endif$
+>>
+
+ParquetUTCTimestampZeroOffsetConvert(col) ::=<<
+$if(col.istimezone)$$unquotedFieldName(col.field_name)$ as $unquotedFieldName(col.field_name)$,TO_TIMESTAMP($unquotedFieldName([col.field_name,"_utc"])$) as $unquotedFieldName([col.field_name,"_utc"])$$else$$unquotedFieldName(col.field_name)$ as $unquotedFieldName(col.field_name)$$endif$
+>>
+
+ParquetUTCTimestampZeroOffsetConvert_intermediate_stg(col) ::=<<
+$if(col.istimezone)$$backTickFieldName(col.field_name)$ as $backTickFieldName(col.field_name)$,TO_TIMESTAMP($backTickFieldName([col.field_name,"_utc"])$) as $backTickFieldName([col.field_name,"_utc"])$$else$$backTickFieldName(col.field_name)$ as $backTickFieldName(col.field_name)$$endif$
+>>
+
+OracleDateToString(col) ::=<<
+to_char($quotedFieldName(col.column_name)$, 'YYYY-MM-DD HH24:MI:SS') as $quotedFieldName(col.field_name)$
+>>
+
+ParquetStringToIntConvert(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as INT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToIntConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.field_name)$ as INT) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToBigIntConvert(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as BIGINT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToBigIntConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.field_name)$ as BIGINT) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToTinyIntConvert(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as TINYINT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToTinyIntConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.field_name)$ as TINYINT) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToSmallIntConvert(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as SMALLINT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToSmallIntConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.field_name)$ as SMALLINT) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToVarcharMaxConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as varchar(max)) $unquotedFieldName(col.field_name)$
+>>
+
+OracleRowIdToString(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(18)) $quotedFieldName(col.field_name)$
+>>
+
+OracleURowIdToString(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(4000)) $quotedFieldName(col.field_name)$
+>>
+
+OracleXmlToString(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(4000)) $quotedFieldName(col.field_name)$
+>>
+
+OracleRawToString(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(4000)) $quotedFieldName(col.field_name)$
+>>
+
+OracleIntervalToString(col) ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(255)) $quotedFieldName(col.field_name)$
+>>
+
+TimestampTZAsIs(col) ::=<<
+$if(col.istimezone)$$unquotedFieldName(col.field_name)$ as $unquotedFieldName(col.field_name)$,$unquotedFieldName([col.field_name,"_utc"])$ as $unquotedFieldName([col.field_name,"_utc"])$$else$$unquotedFieldName(col.field_name)$ as $unquotedFieldName(col.field_name)$$endif$
+>>
+
+TimestampTZAsIs_intermediate_stg(col) ::=<<
+$if(col.istimezone)$$backTickFieldName(col.field_name)$ as $backTickFieldName(col.field_name)$,$backTickFieldName([col.field_name,"_utc"])$ as $backTickFieldName([col.field_name,"_utc"])$$else$$backTickFieldName(col.field_name)$ as $backTickFieldName(col.field_name)$$endif$
+>>
+
+SQLServerSmallDateTimeToStringConvert(col)::=<<
+CONVERT(varchar(30),$quotedFieldName(col.column_name)$,121) as $unquotedFieldName(col.field_name)$
+>>
+
+SQLServerTimeToStringConvert(col) ::=<<
+convert(varchar(30),$quotedFieldName(col.column_name)$, 114) as $unquotedFieldName(col.field_name)$
+>>
+
+SQLServerDateTimeToStringConvert(col) ::=<<
+convert(varchar(30),$quotedFieldName(col.column_name)$, 121) as $unquotedFieldName(col.field_name)$
+>>
+
+SQLServerDateTime2ToStringConvert(col)::=<<
+convert(varchar(30),$quotedFieldName(col.column_name)$, 121) as $unquotedFieldName(col.field_name)$
+>>
+
+SQLServerDateTimeOffsetToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$,CONVERT(varchar(50),CONVERT(datetime2,$quotedFieldName(col.column_name)$ AT TIME ZONE 'UTC'),121) as $unquotedFieldName([col.field_name,"_utc"])$
+>>
+
+SQLServerDateTimeOffsetConvert(col)::=<<
+CONVERT(varchar(50),CONVERT(datetime2,$quotedFieldName(col.column_name)$ AT TIME ZONE 'UTC'),121) as $unquotedFieldName(col.field_name)$
+>>
+
+SqlServerTinyintToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+SqlServerIntToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+SqlServerSmallintToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+SqlServerBigintToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+SqlServerDecimalToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+SqlServerNumericToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+SqlServerDateToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+SqlServerBitToStringConvert(col)::=<<
+cast($quotedFieldName(col.column_name)$ AS varchar(10)) as $unquotedFieldName(col.field_name)$
+>>
+
+AnyToString(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as string) as $unquotedFieldName(col.field_name)$
+>>
+
+AnyToArray(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as array) as $unquotedFieldName(col.field_name)$
+>>
+
+AnyToMap(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as map) as $unquotedFieldName(col.field_name)$
+>>
+
+AnyToStruct(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as struct) as $unquotedFieldName(col.field_name)$
+>>
+
+AnyToBoolean(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as boolean) as $unquotedFieldName(col.field_name)$
+>>
+
+AnyToString_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as string) as $backTickFieldName(col.field_name)$
+>>
+
+AnyToArray_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as array) as $backTickFieldName(col.field_name)$
+>>
+
+AnyToMap_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as map) as $backTickFieldName(col.field_name)$
+>>
+
+AnyToStruct_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as struct) as $backTickFieldName(col.field_name)$
+>>
+
+AnyToBoolean_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as boolean) as $backTickFieldName(col.field_name)$
+>>
+
+AnyToStringConvert(col) ::=<<
+cast($unquotedFieldName(col.column_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+AnyToStringConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.column_name)$ AS varchar(255)) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetAnyToStringConvert(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ AS varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetAnyToStringConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.field_name)$ AS varchar(255)) as $backTickFieldName(col.field_name)$
+>>
+
+MysqlTinyintToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,CHAR) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlSmallintToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,CHAR) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlMediumintToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,CHAR) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlIntToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,CHAR) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlBigintToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,CHAR) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlFloatToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlDoubleToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlDecimalToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MySqlDateToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlDateTimeToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlTimestampToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MySqlTimeToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MySqlYearToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlBitToStringConvert(col) ::=<<
+LPAD(BIN($backTickFieldName(col.column_name)$),$col.data_precision$,'0') as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlJsonToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToFloatConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as FLOAT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToFloatConvert_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as FLOAT) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToCharConvert(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as CHAR($if(col.data_length)$$col.data_length$$else$255$endif$)) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToCharConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.field_name)$ as CHAR($if(col.data_length)$$col.data_length$$else$255$endif$)) as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToVarcharConvert(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as VARCHAR($if(col.data_length)$$col.data_length$$else$255$endif$)) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToVarcharConvert_intermediate_stg(col) ::=<<
+cast($backTickFieldName(col.field_name)$ as VARCHAR($if(col.data_length)$$col.data_length$$else$255$endif$)) as $backTickFieldName(col.field_name)$
+>>
+
+PostgresTimestampOffsetZeroToStringConvert(col)  ::=<<
+to_char($quotedFieldName(col.column_name)$, 'YYYY-MM-DD HH24:MI:SS') as $unquotedFieldName(col.field_name)$
+>>
+
+PostgresTimestampToStringConvert(col) ::=<<
+to_char($quotedFieldName(col.column_name)$, 'YYYY-MM-DD HH24:MI:SS.US') as $unquotedFieldName(col.field_name)$
+>>
+
+PostgresTimestamptzToStringConvert(col) ::=<<
+to_char($quotedFieldName(col.column_name)$ ,'YYYY-MM-DD HH24:MI:SS.US OF') as $unquotedFieldName([col.field_name])$ , to_char($quotedFieldName(col.column_name)$ at TIME zone 'UTC', 'YYYY-MM-DD HH24:MI:SS.US') as $unquotedFieldName([col.field_name,"_utc"])$
+>>
+
+PostgresTimestamptzOffsetZeroToStringConvert(col) ::=<<
+to_char($quotedFieldName(col.column_name)$ ,'YYYY-MM-DD HH24:MI:SS OF') as $unquotedFieldName([col.field_name])$ , to_char($quotedFieldName(col.column_name)$ at TIME zone 'UTC', 'YYYY-MM-DD HH24:MI:SS') as $unquotedFieldName([col.field_name,"_utc"])$
+>>
+
+PostgresTimeOffsetZeroToStringConvert(col) ::=<<
+to_char($quotedFieldName(col.column_name)$, 'HH24:MI:SS') as $unquotedFieldName(col.field_name)$
+>>
+
+PostgresTimeToStringConvert(col) ::=<<
+to_char($quotedFieldName(col.column_name)$, 'HH24:MI:SS.US') as $unquotedFieldName(col.field_name)$
+>>
+
+PostgresTimetzToStringConvert(col)  ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(50)) as $unquotedFieldName([col.field_name])$
+>>
+
+PostgresAbstimeToStringConvert(col)  ::=<<
+to_char($quotedFieldName(col.column_name)$, 'YYYY-MM-DD') as $unquotedFieldName(col.field_name)$
+>>
+
+PostgresDateToStringConvert(col)  ::=<<
+cast($quotedFieldName(col.column_name)$ as varchar(30)) as $unquotedFieldName([col.field_name])$
+>>
+
+PostgresStringConvert_old(col)::=<<
+cast($unquotedFieldName(col.column_name)$ as varchar(255)) as $unquotedFieldName(col.field_name)$
+>>
+
+PostgresStringConvert(col)::=<<
+$unquotedFieldName(col.column_name)$::varchar as $unquotedFieldName(col.field_name)$
+>>
+
+PostgresStringConvert_intermediate_stg(col)::=<<
+$backTickFieldName(col.column_name)$::varchar as $backTickFieldName(col.field_name)$
+>>
+
+ParquetStringToBinaryConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as binary) as $unquotedFieldName([col.field_name])$
+>>
+
+ParquetStringToBinaryConvert_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as binary) as $backTickFieldName([col.field_name])$
+>>
+
+ParquetStringToCharacterConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as char(1)) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToInt(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as INT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToBigInt(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as BIGINT) as $unquotedFieldName(col.field_name)$
+>>
+ParquetStringToSmallInt(col) ::=<<
+cast($unquotedFieldName(col.field_name)$ as SMALLINT) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToDateConvert(col) ::=<<
+TO_DATE($unquotedFieldName(col.field_name)$) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetStringToDateConvert_intermediate_stg(col) ::=<<
+TO_DATE($backTickFieldName(col.field_name)$) as $backTickFieldName(col.field_name)$
+>>
+
+MysqlBinaryToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlVarbinaryToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlTinyblobToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlBlobToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlMediumblobToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+MysqlLongblobToStringConvert(col) ::=<<
+convert($backTickFieldName(col.column_name)$,char) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetBinaryToStringConvert(col)::=<<
+cast($unquotedFieldName(col.field_name)$ as String) as $unquotedFieldName(col.field_name)$
+>>
+
+ParquetBinaryToStringConvert_intermediate_stg(col)::=<<
+cast($backTickFieldName(col.field_name)$ as String) as $backTickFieldName(col.field_name)$
+>>
+
+UserText(col)::=<<
+'$col.user_text$' as $unquotedFieldName(col.field_name)$
+>>
+
+ReplaceWithNull(col)::=<<
+null as $unquotedFieldName(col.field_name)$
+>>
+
+ReplaceWithNullHive(col)::=<<
+cast(null as string) as $unquotedFieldName(col.field_name)$
+>>
+
+ReplaceWithNullMysql(col)::=<<
+CONVERT(null,CHAR) as $unquotedFieldName(col.field_name)$
+>>
