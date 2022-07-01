@@ -1,0 +1,2392 @@
+import "templates/artifact_ingestion/common_templates.stg"
+import "templates/artifact_ingestion/ingestion_templates.stg"
+
+//Ingestion tenplates
+get_metadata_and_generate_almaren(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+ "bot_name": "DBOpsBot",
+ "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "get_metadata_and_generate_almaren"
+  },
+
+  "bot_tasks": [
+    {
+      "task_name": "get_metadata_and_generate_almaren",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "table_metadata_query"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl": true,
+        "query_input": $templateData$
+
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "ingestion_deciding_msg"
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+ingestion_deciding_msg(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+"bot_name": "DBOpsBot",
+  "bot_metadata": {
+     $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+     "tags": {$common_tags(parent_metadata,"DBOpsBot")$,"task_dependency":true},
+     "task_retry_intervals_secs": $retry_intervals()$,
+     "message_context": "ingestion_deciding"
+   },
+    "bot_tasks": [
+    {
+      "task_name": "ingestion_deciding_msg",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "doNothingTemplate"
+      },
+      "input_data": {
+        "template_execution_type": "single",
+        "query_type":"json",
+        "query_input": $templateData$
+        },
+      "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+      $if(first(dataAsMap.table_metadata_output).create_backup_table)$
+          {
+            "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+            "template_name": "create_backup_table_using_ondemandbot_$first(dataAsMap.fetch_source_type).destination$",
+            "useIncomingData":true
+          },
+       $elseif(first(dataAsMap.table_metadata_output) && first(dataAsMap.column_metadata_output))$
+          {
+            "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+            "template_name": "spark_buffer_msg",
+            "useIncomingData":true
+          },
+          $else$
+           {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "log_bot_msg",
+              "useIncomingData":true
+           },
+      $endif$
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "task_status_success_msg"
+          }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+spark_buffer_msg(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+"bot_name": "DBOpsBot",
+  "bot_metadata": {
+     $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+     "tags": {$common_tags(parent_metadata,"DBOpsBot")$,"task_dependency":true},
+     "task_retry_intervals_secs": $retry_intervals()$,
+     "message_context": "spark_buffer_msg"
+   },
+    "bot_tasks": [
+    {
+      "task_name": "spark_buffer_msg",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "doNothingTemplate"
+      },
+      "input_data": {
+        "templateData": $templateData$,
+        "template_execution_type": "single",
+        "query_type":"json"
+        },
+      "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+            "template_name": "spark_ingestion_msg",
+            "useIncomingData":true
+          }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+create_backup_table_using_ondemandbot_hive(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+  "bot_metadata": {
+
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "create_backup_table_when_schema_is_drifted"
+  },
+    "bot_tasks": [
+    {
+      "task_name": "drop_backup_table_if_exists_at_destination",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "generate_ddl_and_drop_backup_table_if_exists"
+      },
+      "input_data": {
+        "destination_schema_name": "$first(dataAsMap.query_input.table_metadata_output).destination_schema_name$",
+        "destination_backup_table_name": "$first(dataAsMap.query_input.table_metadata_output).destination_backup_table_name$",
+        "template_execution_type": "single",
+         "query_type": "drop",
+         "useTransactionControl": false,
+         "query_input": {
+                			"database_config": $hive_database_config(dataAsMap)$,
+                			"destination_type": "$first(dataAsMap.query_input.fetch_source_type).destination$",
+                			"input" : $templateData$
+                		}
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "create_backup_table_at_destination",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "generate_ddl_and_create_backup_table"
+      },
+      "input_data": {
+        "templateData": $templateData$,
+        "destination_schema_name": "$first(dataAsMap.query_input.table_metadata_output).destination_schema_name$",
+        "destination_backup_table_name": "$if(first(dataAsMap.query_input.table_metadata_output).rename_table_condition )$$first(dataAsMap.query_input.table_metadata_output).backup_new_table_name$$else$$first(dataAsMap.query_input.table_metadata_output).destination_backup_table_name$$endif$",
+        "destination_table_name": "$first(dataAsMap.query_input.table_metadata_output).destination_table_name$",
+        "template_execution_type": "single",
+        "query_type": "create",
+        "useTransactionControl": false,
+        "query_input": {
+                        			"database_config": $hive_database_config(dataAsMap)$,
+                        			"destination_type": "$first(dataAsMap.query_input.fetch_source_type).destination$"
+                        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "spark_ingestion_msg",
+          "useIncomingData" : true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+create_backup_table_using_ondemandbot_redshift(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+  "bot_metadata": {
+
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "create_backup_table_when_schema_is_drifted"
+  },
+    "bot_tasks": [
+    {
+      "task_name": "drop_backup_table_if_exists_at_destination",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "generate_ddl_and_drop_backup_table_if_exists_redshift"
+      },
+      "input_data": {
+        "destination_schema_name": "$first(dataAsMap.query_input.table_metadata_output).destination_schema_name$",
+        "destination_backup_table_name": "$first(dataAsMap.query_input.table_metadata_output).destination_backup_table_name$",
+        "template_execution_type": "single",
+         "query_type": "drop",
+         "useTransactionControl": false,
+         "query_input": {
+                			"database_config": $redshift_database_config(dataAsMap)$,
+                			"destination_type": "$first(dataAsMap.query_input.fetch_source_type).destination$",
+                			"input" : $templateData$
+                		}
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "create_backup_table_at_destination",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "generate_ddl_and_create_backup_table_redshift"
+      },
+      "input_data": {
+        "templateData": $templateData$,
+        "destination_schema_name": "$first(dataAsMap.query_input.table_metadata_output).destination_schema_name$",
+        "destination_backup_table_name": "$if(first(dataAsMap.query_input.table_metadata_output).rename_table_condition)$$first(dataAsMap.query_input.table_metadata_output).backup_new_table_name$$else$$first(dataAsMap.query_input.table_metadata_output).destination_backup_table_name$$endif$",
+        "destination_table_name": "$first(dataAsMap.query_input.table_metadata_output).destination_table_name$",
+        "template_execution_type": "single",
+        "query_type": "create",
+        "useTransactionControl": false,
+        "query_input": {
+                                    "database_config": $redshift_database_config(dataAsMap)$,
+                                    "input" : $templateData$
+                        			"destination_type": "$first(dataAsMap.query_input.fetch_source_type).destination$"
+                        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "spark_ingestion_msg",
+          "useIncomingData" : true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+create_backup_table_using_ondemandbot_azure_synapse(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+  "bot_metadata": {
+
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "create_backup_table_when_schema_is_drifted"
+  },
+    "bot_tasks": [
+
+    {
+      "task_name": "drop_and_create_backup_table_at_destination",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "generate_ddl_drop_and_create_backup_table"
+      },
+      "input_data": {
+        "templateData": $templateData$,
+        "destination_schema_name": "$first(dataAsMap.query_input.table_metadata_output).destination_schema_name$",
+        "destination_backup_table_name": "$if(first(dataAsMap.query_input.table_metadata_output).rename_table_condition)$$first(dataAsMap.query_input.table_metadata_output).backup_new_table_name$$else$$first(dataAsMap.query_input.table_metadata_output).destination_backup_table_name$$endif$",
+        "destination_table_name": "$first(dataAsMap.query_input.table_metadata_output).destination_table_name$",
+        "template_execution_type": "single",
+        "query_type": "create",
+        "useTransactionControl": false,
+        "query_input": {
+                        			"database_config": $azure_synapse_database_config(dataAsMap)$,
+                        			"destination_type": "$first(dataAsMap.query_input.fetch_source_type).destination$"
+                        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "spark_ingestion_msg",
+          "useIncomingData" : true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+create_backup_table_using_ondemandbot_bigquery(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+  "bot_metadata": {
+
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "create_backup_table_when_schema_is_drifted"
+  },
+    "bot_tasks": [
+    {
+      "task_name": "create_backup_table_at_destination",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_bigquery_bkp_table"
+
+      },
+      "input_data": {
+        "templateData": $templateData$,
+        "destination_schema_name": "$first(dataAsMap.query_input.table_metadata_output).destination_schema_name$",
+        "destination_backup_table_name": "$if(first(dataAsMap.query_input.table_metadata_output).rename_table_condition)$$first(dataAsMap.query_input.table_metadata_output).backup_new_table_name$$else$$first(dataAsMap.query_input.table_metadata_output).destination_backup_table_name$$endif$",
+        "destination_table_name": "$first(dataAsMap.query_input.table_metadata_output).destination_table_name$",
+        "template_execution_type": "single",
+        "query_type": "create",
+        "useTransactionControl": false,
+        "query_input": {
+                        			"database_config": $bigquery_database_config(dataAsMap)$,
+                        			"destination_type": "$first(dataAsMap.query_input.fetch_source_type).destination$"
+                        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "spark_ingestion_msg",
+          "useIncomingData" : true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+create_backup_table_using_ondemandbot_snowflake(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+  "bot_metadata": {
+
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "create_backup_table_when_schema_is_drifted"
+  },
+    "bot_tasks": [
+    {
+      "task_name": "drop_and_create_backup_table_at_destination",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_snowflake_bkp_table"
+
+      },
+      "input_data": {
+        "templateData": $templateData$,
+        "destination_schema_name": "$first(dataAsMap.query_input.table_metadata_output).destination_schema_name$",
+        "destination_backup_table_name": "$if(first(dataAsMap.query_input.table_metadata_output).rename_table_condition)$$first(dataAsMap.query_input.table_metadata_output).backup_new_table_name$$else$$first(dataAsMap.query_input.table_metadata_output).destination_backup_table_name$$endif$",
+        "destination_table_name": "$first(dataAsMap.query_input.table_metadata_output).destination_table_name$",
+        "template_execution_type": "single",
+		"destination_db":"$first(dataAsMap.query_input.table_metadata_output).destination_db$",
+        "query_type": "create",
+        "useTransactionControl": false,
+        "query_input": {
+                        			"database_config": $snowflake_database_config(dataAsMap)$,
+                        			"destination_type": "$first(dataAsMap.query_input.fetch_source_type).destination$"
+                        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "spark_ingestion_msg",
+          "useIncomingData" : true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+spark_ingestion_msg(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "SparkScriptBot",
+  "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.SparkScriptBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "run_almaren_ingestion_job_using_spark"
+  },
+  "bot_tasks": [
+    {
+      "task_name": "run_almaren_ingestion_job_using_spark",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "command_to_run_almaren_ingestion"
+      },
+      "input_data": {
+        "data": $templateData$,
+        "retry_attempt": $parent_metadata.tags.retry_attempt$,
+        "flow_number": $first(dataAsMap.templateData.query_input.table_metadata_output).flow_number$,
+        "data_movement_id": $first(dataAsMap.templateData.query_input.table_metadata_output).data_movement_id$,
+        "where_condition": "$first(dataAsMap.templateData.query_input.table_metadata_output).where_condition$",
+        "process_id": $first(dataAsMap.templateData.query_input.table_metadata_output).process_id$,
+        "job_scheduled_user_id": "$parent_metadata.tags.job_scheduled_user_id$",
+        "batch_id": $parent_metadata.tags.batch_id$,
+        "last_run_timestamp": "$parent_metadata.tags.last_run_timestamp$",
+        "schema_drift_flag": $first(dataAsMap.templateData.query_input.table_metadata_output).schema_drift_flag$,
+        "ssh_host": "$first(dataAsMap.templateData.query_input.spark_script_inputs).ssh_host$",
+        "ssh_username": "$first(dataAsMap.templateData.query_input.spark_script_inputs).ssh_username$",
+        "engine_path": "$first(dataAsMap.templateData.query_input.spark_script_inputs).engine_path$",
+        "compute_engine_info": "$first(dataAsMap.templateData.query_input.spark_script_inputs).compute_engine_info$",
+        "spark_location": "$first(dataAsMap.templateData.query_input.spark_script_inputs).spark_location$",
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "destination": "$first(dataAsMap.templateData.query_input.fetch_source_type).destination$",
+        "spark_application_template": "insert_spark_application_details",
+        "source_endpoint": "$first(dataAsMap.templateData.query_input.table_metadata_output).source_endpoint$",
+        "destination_endpoint": "$first(dataAsMap.templateData.query_input.table_metadata_output).destination_endpoint$",
+        "is_create_table": $first(dataAsMap.templateData.query_input.table_metadata_output).is_create_table$
+      },
+      "output_message_templates": [
+            {
+              "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+              "template_name": "advanced_table_options_utility",
+              "useIncomingData": true
+            },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+advanced_table_options_utility(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "DBOpsBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"DBOpsBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "util_for_advanced_options_for_table"
+    },
+  "bot_tasks": [
+    {
+      "task_name": "util_for_advanced_options_for_table",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+     $if(first(dataAsMap.data.templateData.query_input.get_cdc_type).cdc_applied)$
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+     $endif$
+      "app_template_details": {
+        $if(first(dataAsMap.data.templateData.query_input.get_cdc_type).cdc_applied || first(dataAsMap.data.templateData.query_input.advanced_options_tables_flags_status).table_partitions)$
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "advanced_table_options_util"
+      $else$
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "doNothingTemplate"
+      $endif$
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "sequential",
+            "useTransactionControl": true
+          },
+	"skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        $if(first(dataAsMap.data.templateData.query_input.table_metadata_output).is_default)$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_and_destination_into_nabu_if_default",
+          "useIncomingData": true
+        }
+        $elseif(!first(dataAsMap.data.templateData.query_input.table_metadata_output).is_create_table)$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_and_destination_into_nabu",
+          "useIncomingData": true
+        }
+        $else$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": $generate_create_ddl_template_name(dataAsMap.data)$,
+          "useIncomingData": true
+        }
+        $endif$
+        $if(first(dataAsMap.data.templateData.query_input.get_cdc_type).cdc_applied)$
+        ,{
+                  "template_group": "templates/artifact_ingestion/common_templates.stg",
+                  "template_name": "task_status_success_msg"
+        }
+        $endif$
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+generate_create_ddl_template_name(dataAsMap)::=<<
+$if((!first(dataAsMap.templateData.query_input.advanced_options_tables_flags_status).table_partitions) && (first(dataAsMap.templateData.query_input.get_already_ingested_condition).already_ingested) && (first(dataAsMap.templateData.query_input.ingestion_mode).ingestion_mode_key) && ((!first(dataAsMap.templateData.query_input.ingestion_mode).drop_create_condition) ) && (!first(dataAsMap.templateData.query_input.table_metadata_output).rename_table_condition) )$
+$if((first(dataAsMap.templateData.query_input.cdc_first_time).cdc_first_time) && (first(dataAsMap.templateData.query_input.get_cdc_type).cdc_applied))$
+"generate_$first(dataAsMap.templateData.query_input.fetch_source_type).destination$_ddl_and_create_table"
+$elseif((first(dataAsMap.templateData.query_input.get_cdc_type).cdc_applied) && (first(dataAsMap.templateData.query_input.get_cdc_info).create_view) && (!first(dataAsMap.templateData.query_input.get_view_info).table_id) )$
+"generate_$first(dataAsMap.templateData.query_input.fetch_source_type).destination$_view_on_valid_data"
+$else$
+"create_ddl_skip_message"
+$endif$
+$else$
+$if((!first(dataAsMap.templateData.query_input.table_metadata_output).schema_drift_flag) && (!first(dataAsMap.templateData.query_input.table_metadata_output).already_renamed_flag && first(dataAsMap.templateData.query_input.table_metadata_output).rename_flag))$
+"create_ddl_skip_message"
+$else$
+"generate_$first(dataAsMap.templateData.query_input.fetch_source_type).destination$_ddl_and_create_table"
+$endif$
+$endif$
+>>
+
+
+generate_hive_view_on_valid_data(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "create_view_on_valid_data"
+    },
+  "bot_tasks": [
+    {
+      "task_name": "drop_view_if_exists",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+ "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "drop_hive_view"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $([dataAsMap.data.destination,"_database_config"])(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+       "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData": true
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "create_view_on_valid_data",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+ "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_$dataAsMap.data.destination$_view_on_valid_data"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $([dataAsMap.data.destination,"_database_config"])(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+       "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData": true
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+generate_redshift_view_on_valid_data(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "create_view_on_valid_data"
+    },
+  "bot_tasks": [
+    {
+      "task_name": "drop_view_if_exists",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+ "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "drop_redshift_view"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $([dataAsMap.data.destination,"_database_config"])(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+       "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData": true
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "create_view_on_valid_data",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+ "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_$dataAsMap.data.destination$_view_on_valid_data"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $([dataAsMap.data.destination,"_database_config"])(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+       "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData": true
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+generate_azure_synapse_view_on_valid_data(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "create_view_on_valid_data"
+    },
+  "bot_tasks": [
+{
+      "task_name": "drop_view_if_exists",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+ "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "drop_azure_synapse_view"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $([dataAsMap.data.destination,"_database_config"])(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+       "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData": true
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "create_view_on_valid_data",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+ "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_$dataAsMap.data.destination$_view_on_valid_data"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $([dataAsMap.data.destination,"_database_config"])(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+       "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData": true
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+create_ddl_skip_message(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "skip_drop_and_create_table_step"
+    },
+  "bot_tasks": [
+    {
+      "task_name": "skip_drop_and_create_table_step",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+ "app_template_details": {
+      "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+      "template_name": "doNothingTemplate"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $hive_database_config(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+       "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData": true
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+generate_hive_ddl_and_create_table(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "generate_hive_ddl_and_create_table"
+    },
+  "bot_tasks": [
+        {
+        "task_name": "drop_hive_table",
+        "data_processor": {
+          "classname": "com.modak.bots.processor.NullProcessor",
+          "props": {}
+        },
+        "pre_task_logging_template_details": {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "pre_log_template"
+        },
+        "app_template_details": {
+          "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+          "template_name": "drop_hive_table"
+        },
+         "input_data": {
+              "template_execution_type": "single",
+              "query_type": "create",
+              "useTransactionControl": false,
+              "query_input": {
+        			"database_config": $hive_database_config(dataAsMap.data.data.templateData)$,
+        			"destination_type": "$dataAsMap.data.destination$",
+        			"metadata" : $templateData$
+        		}
+            },
+        "output_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "task_status_success_msg"
+          }
+        ],
+        "error_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "error_template_create_msg"
+          }
+        ]
+    },
+    {
+      "task_name": "generate_hive_ddl_and_create_table",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_hive_table"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $hive_database_config(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+      "output_message_templates": [
+        $if(!first(dataAsMap.data.data.templateData.query_input.advanced_options_tables_flags_status).table_partitions && !first(dataAsMap.data.data.templateData.query_input.get_cdc_info).create_view)$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_and_destination_into_nabu",
+          "useIncomingData": true
+        },
+        $endif$
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+    $if(first(dataAsMap.data.data.templateData.query_input.advanced_options_tables_flags_status).table_partitions)$
+    ,{
+       "task_name": "repair_hive_table",
+       "data_processor": {
+         "classname": "com.modak.bots.processor.NullProcessor",
+         "props": {}
+       },
+       "pre_task_logging_template_details": {
+         "template_group": "templates/artifact_ingestion/common_templates.stg",
+         "template_name": "pre_log_template"
+       },
+       "app_template_details": {
+         "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+         "template_name": "repair_hive_table"
+       },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $hive_database_config(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+      "output_message_templates": [
+        $if(!first(dataAsMap.data.data.templateData.query_input.get_cdc_info).create_view)$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_and_destination_into_nabu",
+          "useIncomingData": true
+        },
+        $endif$
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+    $endif$
+   $if(first(dataAsMap.data.data.templateData.query_input.get_cdc_info).create_view)$
+    ,{
+      "task_name": "drop_existing_view",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "drop_hive_view"
+      },
+      "input_data": {
+        "data": $templateData$,
+        "template_execution_type": "single",
+        "query_type": "create",
+        "query_input": {
+          "database_config": $hive_database_config(dataAsMap.data.data.templateData)$,
+          "destination_type": "$dataAsMap.data.destination$",
+          "metadata": $templateData$,
+          "source_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+          "destination_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "create_view_on_valid_data",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_hive_view_on_valid_data"
+      },
+      "input_data": {
+        "data": $templateData$,
+        "template_execution_type": "single",
+        "query_type": "create",
+        "query_input": {
+          "database_config": $hive_database_config(dataAsMap.data.data.templateData)$,
+          "destination_type": "$dataAsMap.data.destination$",
+          "metadata": $templateData$,
+          "source_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+          "destination_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+        }
+      },
+      "output_message_templates": [
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+    $endif$
+  ]
+}
+>>
+
+generate_bigquery_ddl_and_create_table(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "generate_bigquery_ddl_and_create_table"
+    },
+  "bot_tasks": [
+    {
+      "task_name": "generate_bigquery_ddl_and_create_table",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_bigquery_table"
+
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+        		"database_config": $bigquery_database_config(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+      "output_message_templates": [
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+generate_redshift_ddl_and_create_table(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "generate_redshift_ddl_and_create_table"
+    },
+  "bot_tasks": [
+        {
+        "task_name": "drop_redshift_table",
+        "data_processor": {
+          "classname": "com.modak.bots.processor.NullProcessor",
+          "props": {}
+        },
+        "pre_task_logging_template_details": {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "pre_log_template"
+        },
+        "app_template_details": {
+          "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+          "template_name": "drop_redshift_table"
+        },
+         "input_data": {
+              "template_execution_type": "single",
+              "query_type": "create",
+              "useTransactionControl": false,
+              "query_input": {
+        			"database_config": $redshift_database_config(dataAsMap.data.data.templateData)$,
+        			"destination_type": "$dataAsMap.data.destination$",
+        			"metadata" : $templateData$
+        		}
+            },
+        "output_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "task_status_success_msg"
+          }
+        ],
+        "error_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "error_template_create_msg"
+          }
+        ]
+    },
+    {
+      "task_name": "generate_redshift_ddl_and_create_table",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_redshift_table"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+                "database_config": $redshift_database_config(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+      "output_message_templates": [
+        $if(!first(dataAsMap.data.data.templateData.query_input.advanced_options_tables_flags_status).table_partitions && !first(dataAsMap.data.data.templateData.query_input.get_cdc_info).create_view)$
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },$endif$
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    } $if(first(dataAsMap.data.data.templateData.query_input.advanced_options_tables_flags_status).table_partitions)$,
+    {
+      "task_name": "alter_redshift_table_to_get_partitioned_data",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "alter_redshift_table"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+                "database_config": $redshift_database_config(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+      "output_message_templates": [
+        $if(!first(dataAsMap.data.data.templateData.query_input.get_cdc_info).create_view)$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_and_destination_into_nabu",
+          "useIncomingData": true
+        },
+        $endif$
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+    $endif$
+$if(first(dataAsMap.data.data.templateData.query_input.get_cdc_info).create_view)$
+    ,{
+      "task_name": "drop_existing_view",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "drop_redshift_view"
+      },
+      "input_data": {
+        "data": $templateData$,
+        "template_execution_type": "single",
+        "query_type": "create",
+        "query_input": {
+          "database_config": $redshift_database_config(dataAsMap.data.data.templateData)$,
+          "destination_type": "$dataAsMap.data.destination$",
+          "metadata": $templateData$,
+          "source_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+          "destination_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "create_view_on_valid_data",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_redshift_view_on_valid_data"
+      },
+      "input_data": {
+        "data": $templateData$,
+        "template_execution_type": "single",
+        "query_type": "create",
+        "query_input": {
+          "database_config": $redshift_database_config(dataAsMap.data.data.templateData)$,
+          "destination_type": "$dataAsMap.data.destination$",
+          "metadata": $templateData$,
+          "source_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+          "destination_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+        }
+      },
+      "output_message_templates": [
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }$endif$
+  ]
+}
+>>
+
+generate_azure_synapse_ddl_and_create_table(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "generate_azure_synapse_ddl_and_create_table"
+    },
+  "bot_tasks": [
+        {
+        "task_name": "Configuring the Bot according to destination type(Azure Synapse) and creating scoped credential",
+        "data_processor": {
+          "classname": "com.modak.bots.processor.NullProcessor",
+          "props": {}
+        },
+        "pre_task_logging_template_details": {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "pre_log_template"
+        },
+        "app_template_details": {
+          "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+          "template_name": "azure_synapse_scoped_credential_create"
+        },
+         "input_data": {
+              "template_execution_type": "single",
+              "query_type": "create",
+              "useTransactionControl": false,
+              "query_input": {
+        			"database_config": $azure_synapse_database_config(dataAsMap.data.data.templateData)$,
+        			"destination_type": "$dataAsMap.data.destination$",
+        			"metadata" : $templateData$
+        		}
+            },
+        "output_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "task_status_success_msg"
+          }
+        ],
+        "error_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "error_template_create_msg"
+          }
+        ]
+    },
+    {
+      "task_name": "Configuring the Bot according to destination type(Azure Synapse) and creating external data source",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "azure_synapse_external_data_source_create"
+      },
+       "input_data": {
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+				"database_config": $azure_synapse_database_config(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+        {
+          "task_name": "Configuring the Bot according to destination type(Azure Synapse) and creating external file format",
+          "data_processor": {
+            "classname": "com.modak.bots.processor.NullProcessor",
+            "props": {}
+          },
+          "pre_task_logging_template_details": {
+                "template_group": "templates/artifact_ingestion/common_templates.stg",
+                "template_name": "pre_log_template"
+          },
+          "app_template_details": {
+            "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+            "template_name": "azure_synapse_external_file_format_create"
+          },
+           "input_data": {
+                "template_execution_type": "single",
+                "query_type": "create",
+                "useTransactionControl": false,
+                "query_input": {
+					"database_config": $azure_synapse_database_config(dataAsMap.data.data.templateData)$,
+            		"destination_type": "$dataAsMap.data.destination$",
+          			"metadata" : $templateData$
+          		}
+              },
+          "output_message_templates": [
+            {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "task_status_success_msg"
+            }
+          ],
+          "error_message_templates": [
+            {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "error_template_create_msg"
+            }
+          ]
+        },
+        {
+          "task_name": "Configuring the Bot according to destination type(Azure Synapse) and creating external table",
+          "data_processor": {
+            "classname": "com.modak.bots.processor.NullProcessor",
+            "props": {}
+          },
+          "pre_task_logging_template_details": {
+                "template_group": "templates/artifact_ingestion/common_templates.stg",
+                "template_name": "pre_log_template"
+          },
+          "app_template_details": {
+            "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+            "template_name": "azure_synapse_external_table_create"
+          },
+           "input_data": {
+                "data" : $templateData$,
+                "template_execution_type": "single",
+                "query_type": "create",
+                "useTransactionControl": false,
+                "query_input": {
+					"database_config": $azure_synapse_database_config(dataAsMap.data.data.templateData)$,
+            		"destination_type": "$dataAsMap.data.destination$",
+          			"metadata" : $templateData$,
+      			    "source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			    "destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+          		}
+              },
+        "output_message_templates": [
+        $if(!first(dataAsMap.data.data.templateData.query_input.get_cdc_info).create_view)$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_and_destination_into_nabu",
+          "useIncomingData": true
+        },
+        $endif$
+         {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+         }
+       ],
+       "error_message_templates": [
+            {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "error_template_create_msg"
+            }
+          ]
+        }
+$if(first(dataAsMap.data.data.templateData.query_input.get_cdc_info).create_view)$
+    ,{
+      "task_name": "drop_existing_view",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "drop_azure_synapse_view"
+      },
+      "input_data": {
+        "data": $templateData$,
+        "template_execution_type": "single",
+        "query_type": "create",
+        "query_input": {
+          "database_config": $azure_synapse_database_config(dataAsMap.data.data.templateData)$,
+          "destination_type": "$dataAsMap.data.destination$",
+          "metadata": $templateData$,
+          "source_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+          "destination_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "create_view_on_valid_data",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_azure_synapse_view_on_valid_data"
+      },
+      "input_data": {
+        "data": $templateData$,
+        "template_execution_type": "single",
+        "query_type": "create",
+        "query_input": {
+          "database_config": $azure_synapse_database_config(dataAsMap.data.data.templateData)$,
+          "destination_type": "$dataAsMap.data.destination$",
+          "metadata": $templateData$,
+          "source_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+          "destination_metadata_category": "$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_and_destination_into_nabu",
+          "useIncomingData": true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+         }
+       ],
+       "error_message_templates": [
+            {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "error_template_create_msg"
+            }
+          ]
+        }
+    $endif$
+    ]
+}
+>>
+
+generate_snowflake_ddl_and_create_table(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "OnDemandBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.OnDemandBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"OnDemandBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "generate_snowflake_ddl_and_create_table"
+    },
+  "bot_tasks": [
+        {
+        "task_name": "Configuring the Bot according to destination type(Snowflake) and creating storage integration or stage",
+        "data_processor": {
+          "classname": "com.modak.bots.processor.NullProcessor",
+          "props": {}
+        },
+        "pre_task_logging_template_details": {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "pre_log_template"
+        },
+        "app_template_details": {
+          "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+          "template_name": $if(first(dataAsMap.data.data.templateData.query_input.table_metadata_output).is_azure_oauth || first(dataAsMap.data.data.templateData.query_input.table_metadata_output).is_aws_iam)$"snowflake_storage_integration_create"$else$"snowflake_stage_create"$endif$
+        },
+         "input_data": {
+              "template_execution_type": "single",
+              "query_type": "create",
+              "useTransactionControl": false,
+              "query_input": {
+        			"database_config": $snowflake_database_config(dataAsMap.data.data.templateData)$,
+        			"destination_type": "$dataAsMap.data.destination$",
+        			"metadata" : $templateData$
+        		}
+            },
+        "output_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "task_status_success_msg"
+          }
+        ],
+        "error_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "error_template_create_msg"
+          }
+        ]
+    },
+	$if(first(dataAsMap.data.data.templateData.query_input.table_metadata_output).is_azure_oauth || first(dataAsMap.data.data.templateData.query_input.table_metadata_output).is_aws_iam)$
+	{
+        "task_name": "Configuring the Bot according to destination type(Snowflake) and creating stage",
+        "data_processor": {
+          "classname": "com.modak.bots.processor.NullProcessor",
+          "props": {}
+        },
+        "pre_task_logging_template_details": {
+              "template_group": "templates/artifact_ingestion/common_templates.stg",
+              "template_name": "pre_log_template"
+        },
+        "app_template_details": {
+          "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+          "template_name": "snowflake_stage_create"
+        },
+         "input_data": {
+              "template_execution_type": "single",
+              "query_type": "create",
+              "useTransactionControl": false,
+              "query_input": {
+					"database_config": $snowflake_database_config(dataAsMap.data.data.templateData)$,
+        			"destination_type": "$dataAsMap.data.destination$",
+        			"metadata" : $templateData$
+        		}
+            },
+        "output_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "task_status_success_msg"
+          }
+        ],
+        "error_message_templates": [
+          {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "error_template_create_msg"
+          }
+        ]
+    },
+	$endif$
+    {
+      "task_name": "Configuring the Bot according to destination type(Snowflake) and creating external table",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "create_snowflake_table"
+
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "create",
+            "useTransactionControl": false,
+            "query_input": {
+				"database_config": $snowflake_database_config(dataAsMap.data.data.templateData)$,
+        		"destination_type": "$dataAsMap.data.destination$",
+      			"metadata" : $templateData$,
+				"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+      			"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+      		}
+          },
+      "output_message_templates": [
+        {
+           "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+           "template_name": "insert_script_status_and_destination_into_nabu",
+           "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+insert_script_status_and_destination_into_nabu_if_default(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+
+{
+  "bot_name": "DBOpsBot",
+   "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"DBOpsBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "insert_script_status_and_destination_into_nabu"
+    },
+  "bot_tasks": [
+    {
+      "task_name": "insert_script_status_and_destination_into_nabu",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "template_name": "doNothingTemplate"
+      },
+       "input_data": {
+            "data" : $templateData$,
+            "template_execution_type": "single",
+            "query_type": "json",
+            "useTransactionControl": false,
+            "query_input": {
+      			"destination_type": $get_destination_type(dataAsMap.data)$,
+      			"metadata" : $templateData$,
+      			"source_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).source_metadata_category$",
+				"destination_metadata_category" :"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"
+				}
+          },
+	"skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+       {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_and_destination_into_nabu",
+          "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData":true
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+
+
+>>
+
+insert_script_status_and_destination_into_nabu(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "DBOpsBot",
+  "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "insert_ingestion_job_metadata"
+  },
+    "bot_tasks": [
+    {
+      "task_name": "jdbc_insert_script_details",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "insert_spark_job_result"
+      },
+      "input_data": {
+        "template_execution_type":"single",
+        "query_type":"insert",
+        "useTransactionControl":false,
+       	"query_input": {
+            "data" : $templateData$,
+            "initial_ts" : $parent_metadata.tags.initial_ts$,
+            "process_id" : $parent_metadata.tags.process_id$,
+            "bot_uuid": "$bot_id$"
+        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    },
+    {
+      "task_name": "jdbc_destination_table_info",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "insert_destination_info_into_nabu"
+      },
+      "input_data": {
+        "template_execution_type":"sequential",
+        "useTransactionControl":true,
+       	"query_input": {
+            "data" : $templateData$,
+            "initial_ts" : $parent_metadata.tags.initial_ts$,
+            "process_id" : $parent_metadata.tags.process_id$,
+            "batch_id" : $parent_metadata.tags.batch_id$,
+            "bot_uuid": "$bot_id$",
+            "destination_metadata_category": $if(first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category)$"$first(dataAsMap.data.data.templateData.query_input.fetch_source_type).destination_metadata_category$"$else$"$dataAsMap.query_input.destination_metadata_category$"$endif$
+        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+         "template_name": "log_bot_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+//curation templates
+get_metadata_and_generate_almaren_or_pyspark(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+ "bot_name": "DBOpsBot",
+ "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "get_metadata_and_generate_almaren"
+  },
+
+  "bot_tasks": [
+    {
+      "task_name": "get_metadata_and_generate_almaren",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "table_metadata_query_almaran_spark"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl": false,
+        "query_input": $templateData$,
+        "retry_attempt" : $parent_metadata.tags.retry_attempt$
+
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "almaren_pyspark_ingestion_msg"
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+almaren_pyspark_ingestion_msg(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "CurationSparkScriptBot",
+  "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.CurationSparkScriptBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "run_almaren_ingestion_job_using_spark"
+  },
+    "bot_tasks": [
+    {
+      "task_name": "run_almaren_ingestion_job_using_spark",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "command_to_run_spark_almaren_job"
+      },
+      "input_data": {
+              "data": $templateData$,
+			  "insert_curation_spark_script_bot_status": true,
+			  "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+			  "template_for_invalidate_old_data" : "update_checkpoint_after_latest_status_insert",
+              "template_name_insert" : "insert_curation_spark_script_bot_status",
+			  "template_name_update" : "update_curation_spark_script_bot_status",
+			  "spark_application_template" : "insert_spark_application_details",
+              "process_id" : $first(dataAsMap.table_metadata_output_almaren_pyspark).process_id$,
+              "project_name" : "$first(dataAsMap.table_metadata_output_almaren_pyspark).project_name$",
+              "git_url" : "$first(dataAsMap.table_metadata_output_almaren_pyspark).git_url$",
+              "git_branch_or_tag" : "$first(dataAsMap.table_metadata_output_almaren_pyspark).git_branch_or_tag$",
+              "git_file_path": "$first(dataAsMap.table_metadata_output_almaren_pyspark).git_file_path$",
+              "spark_command": "$first(dataAsMap.generate_spark_submit_command)$",
+              "ssh_host" : "$first(dataAsMap.spark_script_inputs_for_almaren_pyspark).ssh_host$",
+              "ssh_username" : "$first(dataAsMap.spark_script_inputs_for_almaren_pyspark).ssh_username$",
+              "compute_engine_info" : "$first(dataAsMap.spark_script_inputs_for_almaren_pyspark).compute_engine_info$",
+              "jwt_token" : "$first(dataAsMap.table_metadata_output_almaren_pyspark).jwt_token$",
+              "engine_path" : "$first(dataAsMap.spark_script_inputs_for_almaren_pyspark).engine_path$",
+              "retry_attempt" : $parent_metadata.tags.retry_attempt$,
+              "job_name": "$first(dataAsMap.table_metadata_output_almaren_pyspark).job_name$",
+              "spark_location" :"$first(dataAsMap.spark_script_inputs_for_almaren_pyspark).spark_location$"
+       },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "insert_script_status_into_nabu",
+          "useIncomingData":true
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+almaren_pyspark_cleanup_msg(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "SparkScriptBot",
+  "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.SparkScriptBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "run_almaren_ingestion_job_using_spark"
+  },
+    "bot_tasks": [
+    {
+      "task_name": "run_almaren_ingestion_job_using_spark",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "command_to_run_cleanup_job"
+      },
+      "input_data": {
+              "data": $templateData$,
+              "process_id" : $first(dataAsMap.table_metadata_output_for_cleanup).process_id$,
+              "project_name" : "$first(dataAsMap.table_metadata_output_for_cleanup).project_name$",
+              "git_file_path": "$first(dataAsMap.table_metadata_output_for_cleanup).git_file_path$",
+              "ssh_host" : "$first(dataAsMap.spark_script_inputs_for_cleanup).ssh_host$",
+              "ssh_username" : "$first(dataAsMap.spark_script_inputs_for_cleanup).ssh_username$",
+              "engine_path" : "$first(dataAsMap.spark_script_inputs_for_cleanup).engine_path$",
+              "compute_engine_info" : "$first(dataAsMap.spark_script_inputs_for_cleanup).compute_engine_info$",
+              "spark_location" : "$first(dataAsMap.spark_script_inputs_for_cleanup).spark_location$",
+			  "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+			  "spark_application_template" : "insert_spark_application_details"
+       },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "log_bot_msg"
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+insert_script_status_into_nabu(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "DBOpsBot",
+  "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "insert_status_into_checkpoint_and_spark_job_result"
+  },
+
+  "bot_tasks": [
+    {
+      "task_name": "insert_status_into_checkpoint_and_spark_job_result",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+        "template_name": "query_for_status_insertion"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl": false,
+        "query_input": {
+            "data" : $templateData$,
+            "initial_ts" : $parent_metadata.tags.initial_ts$,
+            "process_id" : $parent_metadata.tags.process_id$,
+            "ssh_host" : "$first(dataAsMap.data.spark_script_inputs_for_almaren_pyspark).ssh_host$",
+            "bot_uuid": "$bot_id$"
+        }
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        },
+		{
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+         "template_name": "log_bot_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+

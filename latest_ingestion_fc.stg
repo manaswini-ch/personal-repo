@@ -1,0 +1,1333 @@
+import "templates/artifact_ingestion/common_templates.stg"
+
+data_movement_information_msg(data,message_uuid,process_id,initial_ts,batch_id,batch_name) ::=<<
+{
+  "bot_name": "DBOpsBot",
+ "bot_metadata": {
+    "message_topic": "$data.templateDataAsMap.workflow_route_bot_topic_details.DBOpsBot$",
+    "workflow_route_bot_topic_details":{$data.templateDataAsMap.workflow_route_bot_topic_details:{k | "$k$" : "$data.templateDataAsMap.workflow_route_bot_topic_details.(k)$"}; separator=","$,"completion_topic":"$data.templateDataAsMap.bot_topic_prefix$$data.templateDataAsMap.workflow_engine_id$_completion","AuthTokenBot":"$data.templateDataAsMap.bot_topic_prefix$$data.templateDataAsMap.workflow_engine_id$_authtoken"},
+    "message_id": "$message_uuid$",
+    "bot_id": "e035080f-88d6-4fdb-a318-a1ad0f1a8cc9",
+    "parent_id": "e035080f-88d6-4fdb-a318-a1ad0f1a8cc9",
+    "tags": {
+      "process_id": $data.process_id$,
+      "initial_ts": $data.process_id$,
+      "generated_ts": $data.process_id$,
+      "batch_id":$data.batch_id$$data.templateDataAsMap.job_schedule_id$,
+      "data_movement_id": $data.templateDataAsMap.data_movement_id$,
+      "job_scheduled_user_id": "$data.templateDataAsMap.job_scheduled_user_id$",
+      "environment": "modak",
+      "tags": [
+        "AuthToken"
+      ],
+      "job_schedule_id":$data.templateDataAsMap.job_schedule_id$,
+      "task_dependency": true,
+      "retry_attempt": 0
+    },
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "data_movement_initial_flow_queries"
+  },
+  "bot_tasks": [
+    {
+      "task_name": "data_movement_flow_queries",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "template_name": "get_scheduled_details"
+      },
+      "input_data": {
+        "template_execution_type": "single",
+        "query_type":"select",
+        "query_input": {
+                "bot_topic_prefix" : "$data.templateDataAsMap.bot_topic_prefix$",
+                "workflow_engine_id" : $data.templateDataAsMap.workflow_engine_id$,
+                "batch_id": $data.batch_id$$data.templateDataAsMap.job_schedule_id$,
+                "batch_name": "$data.templateDataAsMap.batch_name$",
+                "data_movement_id":$data.templateDataAsMap.data_movement_id$,
+                "environment": "$data.templateDataAsMap.environment$",
+                "include_blobs": "$data.templateDataAsMap.include_blobs$",
+				"job_schedule_id":$data.templateDataAsMap.job_schedule_id$,
+				"job_scheduled_user_id":"$data.templateDataAsMap.job_scheduled_user_id$",
+				"job_type": $getJobType(data)$,
+                "destination_type":"$data.templateDataAsMap.destination_type$",
+                "workflow_route_bot_topic_details" : {$data.templateDataAsMap.workflow_route_bot_topic_details:{k | "$k$" : "$data.templateDataAsMap.workflow_route_bot_topic_details.(k)$"}; separator=","$,"completion_topic":"$data.templateDataAsMap.bot_topic_prefix$$data.templateDataAsMap.workflow_engine_id$_completion","AuthTokenBot":"$data.templateDataAsMap.bot_topic_prefix$$data.templateDataAsMap.workflow_engine_id$_authtoken"}
+          }
+        },
+      "output_message_templates": [
+        {
+         "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+          "template_name": "data_movement_information_initial_msg",
+          "useIncomingData":true
+        },
+        {
+         "template_group": "templates/artifact_ingestion/common_templates.stg",
+         "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+
+>>
+
+data_movement_information_initial_msg(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap) ::=<<
+{
+  "bot_name": $if(dataAsMap.pipeline_pre_conditions_enabled && !(dataAsMap.pipeline_retry || dataAsMap.manual_retry))$"PipelineDependencyCheckerBot"$else$"DBOpsBot"$endif$,
+  "bot_metadata": {
+    "message_topic": $if(first(dataAsMap.botLogicOutputMap.outputList).pipeline_pre_conditions_enabled && !(first(dataAsMap.botLogicOutputMap.outputList).pipeline_retry || first(dataAsMap.botLogicOutputMap.outputList).manual_retry))$"$dataAsMap.query_input.workflow_route_bot_topic_details.PipelineDependencyCheckerBot$"$else$"$dataAsMap.query_input.workflow_route_bot_topic_details.DBOpsBot$"$endif$,
+    "workflow_route_bot_topic_details":{$dataAsMap.query_input.workflow_route_bot_topic_details:{k | "$k$" : "$dataAsMap.query_input.workflow_route_bot_topic_details.(k)$"}; separator=","$},
+    "message_id": "$message_id$",
+    "bot_id": "e035080f-88d6-4fdb-a318-a1ad0f1a8cc9",
+    "parent_id": "e035080f-88d6-4fdb-a318-a1ad0f1a8cc9",
+    "tags": {
+      "process_id": $parent_metadata.tags.process_id$,
+      "initial_ts": $parent_metadata.tags.initial_ts$,
+      "generated_ts": $parent_metadata.tags.generated_ts$,
+      "batch_id":$dataAsMap.query_input.batch_id$,
+      "data_movement_id": $parent_metadata.tags.data_movement_id$,
+      "job_scheduled_user_id": "$parent_metadata.tags.job_scheduled_user_id$",
+      "environment": "modak",
+      "tags": [
+        "AuthToken",
+      ],
+      "job_schedule_id":$parent_metadata.tags.job_schedule_id$,
+      "task_dependency": true,
+      "retry_attempt": 0
+    },
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "starting_message_for_ingestion"  },
+  "bot_tasks": [
+    {
+      "task_name": "checking_pre_conditions_or_starting_msg_of_ingestion",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      $if(first(dataAsMap.botLogicOutputMap.outputList).pipeline_pre_conditions_enabled && !(first(dataAsMap.botLogicOutputMap.outputList).pipeline_retry || first(dataAsMap.botLogicOutputMap.outputList).manual_retry))$
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "template_name": "pipeline_pre_conditions_check"
+      },
+      $else$
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "template_name": "data_movement_queries"
+      },
+      $endif$
+      "input_data": {
+      $if(first(dataAsMap.botLogicOutputMap.outputList).pipeline_pre_conditions_enabled && !(first(dataAsMap.botLogicOutputMap.outputList).pipeline_retry || first(dataAsMap.botLogicOutputMap.outputList).manual_retry))$
+        "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "template_name" : "insert_pipeline_dependency_status",
+      $else$
+        "template_execution_type": "sequential",
+      $endif$
+        "useTransactionControl":false,
+        "query_input": {
+                "bot_topic_prefix" : "$dataAsMap.query_input.bot_topic_prefix$",
+                "workflow_engine_id" : $dataAsMap.query_input.workflow_engine_id$,
+                "batch_id": $dataAsMap.query_input.batch_id$,
+                "batch_name": "$dataAsMap.query_input.batch_name$",
+                "data_movement_id":$dataAsMap.query_input.data_movement_id$,
+                "environment": "$dataAsMap.query_input.environment$",
+                "pipeline_retry": $first(dataAsMap.botLogicOutputMap.outputList).pipeline_retry$,
+                "ignore_null_tables_flag":$first(dataAsMap.botLogicOutputMap.outputList).ignore_null_tables_flag$,
+                "include_blobs": "$dataAsMap.query_input.include_blobs$",
+				"manual_retry":$first(dataAsMap.botLogicOutputMap.outputList).manual_retry$,
+				"job_schedule_id":$dataAsMap.query_input.job_schedule_id$,
+				"job_scheduled_user_id":"$dataAsMap.query_input.job_scheduled_user_id$",
+				"job_type": $if(first(dataAsMap.botLogicOutputMap.outputList).pipeline_retry)$"pipeline_retry"$elseif(first(dataAsMap.botLogicOutputMap.outputList).manual_retry)$"ingestion_retry"$else$"ingestion"$endif$,
+                "destination_type":"$dataAsMap.query_input.destination_type$",
+                "workflow_route_bot_topic_details" : {$dataAsMap.query_input.workflow_route_bot_topic_details:{k | "$k$" : "$dataAsMap.query_input.workflow_route_bot_topic_details.(k)$"}; separator=","$}
+          }
+        },
+      "output_message_templates": [
+      $if(first(dataAsMap.botLogicOutputMap.outputList).pipeline_pre_conditions_enabled && !(first(dataAsMap.botLogicOutputMap.outputList).pipeline_retry || first(dataAsMap.botLogicOutputMap.outputList).manual_retry))$
+        {
+         "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+         "template_name": "checking_if_pipeline_pre_conditions_satisfied",
+         "useIncomingData" : true
+        },
+      $else$
+        {
+         "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+          "template_name": "data_movement_deciding_msg"
+        },
+      $endif$
+        {
+         "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+         "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+getJobType(data)::=<<
+$if(data.templateDataAsMap.pipeline_retry)$"pipeline_retry"$elseif(data.templateDataAsMap.manual_retry)$"ingestion_retry"$else$"ingestion"$endif$
+>>
+
+checking_if_pipeline_pre_conditions_satisfied(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+"bot_name": "DBOpsBot",
+  "bot_metadata": {
+     $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+     "tags": {$common_tags(parent_metadata,"DBOpsBot")$,"task_dependency":true},
+     "task_retry_intervals_secs": $retry_intervals()$,
+     "message_context": "checking_if_pipeline_pre_conditions_satisfied"
+   },
+    "bot_tasks": [
+    {
+      "task_name": "checking_if_pipeline_pre_conditions_satisfied_and_inserting_failed_status",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "template_name": "fetching_the_requirements_and_inserting_failed_status"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl":false,
+        "query_input": $templateData$
+        },
+      "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+      $if(dataAsMap.botLogicOutputMap.is_pipeline_pre_conditions_satisfied)$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+          "template_name": "fetch_data_movement_information"
+        },
+      $endif$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData":true
+        }
+
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+fetch_data_movement_information(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap) ::=<<
+{
+  "bot_name": "DBOpsBot",
+ "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+      "tags": {$common_tags(parent_metadata,"DBOpsBot")$,"task_dependency":true},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "data_movement_flow_queries"
+  },
+  "bot_tasks": [
+    {
+      "task_name": "data_movement_flow_queries",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+            "template_group": "templates/artifact_ingestion/common_templates.stg",
+            "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "template_name": "data_movement_queries"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl":false,
+        "query_input": {
+                "batch_id": $first(dataAsMap.input_of_data_movement).batch_id$,
+                "batch_name": "$first(dataAsMap.input_of_data_movement).batch_name$",
+                "data_movement_id":$first(dataAsMap.input_of_data_movement).data_movement_id$,
+                "environment": "$first(dataAsMap.input_of_data_movement).environment$",
+                "pipeline_retry": $first(dataAsMap.input_of_data_movement).pipeline_retry$,
+                "ignore_null_tables_flag":$first(dataAsMap.input_of_data_movement).ignore_null_tables_flag$,
+                "include_blobs": "$first(dataAsMap.input_of_data_movement).include_blobs$",
+				"manual_retry":$first(dataAsMap.input_of_data_movement).manual_retry$,
+				"job_schedule_id":$first(dataAsMap.input_of_data_movement).job_schedule_id$,
+                "destination_type":"$first(dataAsMap.input_of_data_movement).destination_type$",
+                "job_type":"$first(dataAsMap.input_of_data_movement).job_type$",
+                "job_scheduled_user_id": "$first(dataAsMap.input_of_data_movement).job_scheduled_user_id$",
+                "workflow_route_bot_topic_details" : {$first(dataAsMap.input_of_data_movement).workflow_route_bot_topic_details:{k | "$k$" : "$first(dataAsMap.input_of_data_movement).workflow_route_bot_topic_details.(k)$"}; separator=","$}
+          }
+        },
+      "output_message_templates": [
+        {
+         "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+          "template_name": "data_movement_deciding_msg"
+        },
+        {
+         "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+         "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+data_movement_deciding_msg(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+"bot_name": "DBOpsBot",
+  "bot_metadata": {
+     $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+     "tags": {$common_tags(parent_metadata,"DBOpsBot")$,"task_dependency":true},
+     "task_retry_intervals_secs": $retry_intervals()$,
+     "message_context": "data_movement_deciding"
+   },
+    "bot_tasks": [
+    {
+      "task_name": "data_movement_deciding_msg",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "pre_task_logging_template_details": {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "template_name": "doNothingTemplate"
+      },
+      "input_data": {
+        "template_execution_type": "single",
+        "query_type":"json",
+        "encryption_details" : {"encryption" : "no"},
+        "query_input": $templateData$
+        },
+      "skipLogicPattern" : "doNothing",
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/flow_controller.stg",
+          "template_name": "flow_controller_message_for_ingestion",
+          "useIncomingData":true
+        },
+        $if(!first(dataAsMap.nabu_ingestion) && (first(dataAsMap.get_schema_drift_ignore_tables).object_id || first(dataAsMap.get_datatype_ignore_tables).object_id))$
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "insert_ignore_flow_status",
+          "useIncomingData":true
+        },
+        $endif$
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_flow.stg",
+          "template_name": "task_status_success_msg",
+          "useIncomingData":true
+        }
+
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/ingestion_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+data_movement_query_input(templateData)::=<<
+{
+      "batch_id": $templateData.batch_id$,
+      "batch_name": "$templateData.batch_name$",
+      "data_movement_id":$templateData.data_movement_id$,
+      "environment": "$templateData.environment$",
+      "pipeline_retry": $templateData.pipeline_retry$,
+      "ignore_null_tables_flag": $templateData.ignore_null_tables_flag$,
+      "include_blobs": "$templateData.include_blobs$",
+      "destination_type":"$templateData.destination_type$",
+      "job_type":"$templateData.job_type$",
+      "manual_retry":$templateData.manual_retry$,
+      "job_schedule_id":$templateData.job_schedule_id$,
+      "job_scheduled_user_id":"$templateData.job_scheduled_user_id$",
+      "workflow_route_bot_topic_details" : {$templateData.workflow_route_bot_topic_details:{k | "$k$" : "$templateData.workflow_route_bot_topic_details.(k)$"}; separator=","$}
+}
+>>
+
+data_movement_queries(templateData)::=<<
+{
+  "input_data": $data_movement_query_input(templateData.query_input)$,
+   "sequential_templates":[
+      {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "fetch_data_movement_info",
+        "query_output_key": "data_movement_info",
+        "query_type":"select"
+      },
+      $if(templateData.query_input.pipeline_retry || templateData.query_input.manual_retry)$
+      {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "get_batch_id",
+        "query_output_key": "get_batch_id",
+        "query_type":"select"
+      },
+      $endif$
+      {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "schema_drift_object_info",
+        "query_output_key": "schema_drift_table_info",
+        "query_type":"select"
+      },
+      {
+          "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+          "query_template_name": "fetch_job_type_id",
+          "query_output_key": "job_type_id",
+          "query_type":"select"
+      },
+       $if(!templateData.query_input.manual_retry)$
+         {
+         "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+         "query_template_name": "get_schema_drift_ignore_tables",
+         "query_output_key": "get_schema_drift_ignore_tables",
+         "query_type":"select"
+       },
+         {
+         "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+         "query_template_name": "insert_schema_drift_ignore_tables",
+         "query_output_key": "insert_schema_drift_ignore_tables",
+         "query_type":"insert"
+       },
+       {
+           "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+           "query_template_name": "advanced_options_mapping_details",
+           "query_output_key": "advanced_options_mapping_details",
+           "query_type":"select"
+       },
+       {
+          "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+          "query_template_name": "insert_data_movement_schema_drift_table",
+          "query_output_key": "insert_data_movement_schema_drift_table",
+          "query_type":"insert"
+       },
+       {
+         "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+         "query_template_name": "get_datatype_ignore_tables",
+         "query_output_key": "get_datatype_ignore_tables",
+         "query_type":"select"
+       },
+        {
+         "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+         "query_template_name": "insert_datatype_ignore_tables",
+         "query_output_key": "insert_datatype_ignore_tables",
+         "query_type":"insert"
+       },
+       $endif$
+       $if(templateData.query_input.ignore_null_tables_flag)$
+       {
+         "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+         "query_template_name": "get_ignore_null_tables",
+         "query_output_key": "get_ignore_null_tables",
+         "query_type":"select"
+       },
+       {
+          "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+          "query_template_name": "insert_ignore_null_tables",
+          "query_output_key": "insert_ignore_null_tables",
+          "query_type":"insert"
+       },
+       $endif$
+      {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "ingestion_object_info",
+        "query_output_key": "nabu_ingestion",
+        "query_type":"select"
+      },
+      {
+         "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+         "query_template_name": "email_input",
+         "query_output_key": "email_input",
+         "query_type":"select"
+      },
+	  {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "condition_for_success_mail",
+        "query_output_key": "condition_for_success_mail",
+        "query_type":"select"
+      },
+	  {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "condition_for_failure_mail",
+        "query_output_key": "condition_for_failure_mail",
+        "query_type":"select"
+      },
+	  {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "condition_for_schema_drift_mail",
+        "query_output_key": "condition_for_schema_drift_mail",
+        "query_type":"select"
+      },
+      {
+          "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+          "query_template_name": "flows_list_query",
+          "query_output_key": "flows",
+          "query_type":"select"
+      },
+      {
+       "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+       "query_template_name": "get_batch_datamovement_id",
+       "query_output_key": "get_batch_datamovement_id",
+       "query_type":"select"
+      }
+    ],
+  "output_keys":["flows","schema_drift_table_info","get_schema_drift_ignore_tables","get_datatype_ignore_tables","get_batch_datamovement_id","nabu_ingestion","email_input","condition_for_schema_drift_mail","condition_for_success_mail","condition_for_failure_mail"]
+}
+>>
+
+advanced_options_mapping_details(templateData)::=<<
+    select case when ((((data_movement_additional_info->\>'flow_details')::json->\>'schema_drift')::json)->\>'advanced_options_sub_type') is null then 'drop_create_table'
+else ((((data_movement_additional_info->\>'flow_details')::json->\>'schema_drift')::json)->\>'advanced_options_sub_type') end as schema_drift_option,
+case when ((((data_movement_additional_info->\>'flow_details')::json->\>'schema_drift')::json)->\>'advanced_options_sub_type_id') is null then '3'
+else ((((data_movement_additional_info->\>'flow_details')::json->\>'schema_drift')::json)->\>'advanced_options_sub_type_id') end as schema_drift_option_id
+,data_movement_id
+from nabu.data_movement_physical
+where data_movement_id = $templateData.input_data.data_movement_id$
+and valid_to_ts = '9999-12-31'
+>>
+
+insert_data_movement_schema_drift_table(templateData)::=<<
+$if(templateData.input_data.pipeline_retry)$
+with process_id_for_ignore_tables as(select * from nabu.flow_task_status
+where status_code_id= 30
+and batch_id = $first(templateData.get_batch_id).batch_id$)
+$else$
+with process_id_for_ignore_tables as(select * from nabu.flow_task_status
+where status_code_id= 30
+and batch_id = $templateData.input_data.batch_id$)
+$endif$
+
+INSERT INTO nabu.data_movement_schema_drift_details
+(data_movement_id, dataplace_id, schema_directory_id, object_id, advanced_options_sub_type_id, advanced_options_sub_type, cru_by, cru_ts, batch_id, process_id)
+$if(first(templateData.schema_drift_table_info).schema_drifted_table_id_list)$
+select $templateData.input_data.data_movement_id$ as data_movement_id, a.dataplace_id, a.schema_id as schema_directory_id, a.table_id as object_id,
+$first(templateData.advanced_options_mapping_details).schema_drift_option_id$ as advanced_options_sub_type_id,
+'$first(templateData.advanced_options_mapping_details).schema_drift_option$' as advanced_options_sub_type, 'Modak', now(),
+b.batch_id, b.process_id
+from nabu.dataplace_table_schema_drift_details a
+inner join process_id_for_ignore_tables b
+on a.table_id = b.object_id
+where a.valid_to_ts = '9999-12-31'
+and a.table_id in ($first(templateData.schema_drift_table_info).schema_drifted_table_id_list$)
+and '$first(templateData.advanced_options_mapping_details).schema_drift_option$' = 'ignore_table'
+$else$
+select $templateData.input_data.data_movement_id$ as data_movement_id, a.dataplace_id, a.schema_id as schema_directory_id, a.table_id as object_id,
+$first(templateData.advanced_options_mapping_details).schema_drift_option_id$ as advanced_options_sub_type_id,
+'$first(templateData.advanced_options_mapping_details).schema_drift_option$' as advanced_options_sub_type, 'Modak', now(),
+b.batch_id, b.process_id
+from nabu.dataplace_table_schema_drift_details a
+inner join process_id_for_ignore_tables b
+on a.table_id = b.object_id
+where 1 = 0
+$endif$
+>>
+
+get_batch_datamovement_id(templateData)::=<<
+select $templateData.input_data.data_movement_id$ as data_movement_id,$first(templateData.job_type_id).job_type_id$ as job_type_id,$if(templateData.input_data.pipeline_retry || templateData.input_data.manual_retry)$ $first(templateData.get_batch_id).batch_id$ as batch_id $else$ $templateData.input_data.batch_id$ as batch_id $endif$ ,36  as status_code_id , $templateData.input_data.job_schedule_id$ as job_schedule_id
+>>
+
+fetch_job_type_id(templateData)::=<<
+select job_type_id from nabu.job_type_lookup where job_type='$templateData.input_data.job_type$'
+>>
+
+schema_drift_object_info(templateData) ::=<<
+with data_movement_schema_drift_table_ids as(
+select * from(
+select data_movement_id, dataplace_id, schema_directory_id, object_id, cru_ts, row_number() over(partition by object_id order by cru_ts desc) as rownum
+from nabu.data_movement_schema_drift_details
+where data_movement_id = $templateData.input_data.data_movement_id$) a
+where rownum = 1
+),
+get_table_ids as (
+select table_id from nabu.dataplace_table_metadata_physical dtmp where ($first(templateData.data_movement_info).where_condition$) and valid_to_ts = '9999-12-31'
+),
+get_non_schema_drifted_table_ids as(
+select a.dataplace_id,a.schema_id, a.dataplace_component_type_id,a.table_id
+from nabu.dataplace_table_schema_drift_details a
+inner join
+data_movement_schema_drift_table_ids b
+on a.table_id = b.object_id
+and a.schema_id = b.schema_directory_id
+and a.dataplace_id = b.dataplace_id
+where a.valid_to_ts = '9999-12-31'
+and a.crt_ts < b.cru_ts
+and b.data_movement_id = $templateData.input_data.data_movement_id$
+union all
+select a.dataplace_id,a.schema_id, a.dataplace_component_type_id,a.table_id
+from nabu.dataplace_table_schema_drift_details a
+inner join
+nabu.structured_jobtotable b
+on a.table_id = b.object_id
+and a.dataplace_id = b.dataplace_id
+where b.data_movement_id = $templateData.input_data.data_movement_id$
+and b.object_type = 'S'
+and a.valid_to_ts = '9999-12-31'
+and b.cru_ts > a.crt_ts
+union all
+select a.dataplace_id,a.schema_id, a.dataplace_component_type_id,a.table_id
+from nabu.dataplace_table_schema_drift_details a
+where table_id in(select * from get_table_ids)
+and a.valid_to_ts = '9999-12-31'
+and table_id not in (select object_id as table_id from nabu.structured_jobtotable b
+where b.data_movement_id = $templateData.input_data.data_movement_id$ and b.object_type = 'S'
+)
+)
+select string_agg(a.table_id::text,',') as schema_drifted_table_id_list from nabu.dataplace_table_schema_drift_details a
+where table_id in (select table_id from get_table_ids)
+and a.valid_to_ts = '9999-12-31'
+and table_id not in (select table_id from get_non_schema_drifted_table_ids)
+>>
+
+fetch_data_movement_info(templateData) ::=<<
+select  string_agg('('||where_condition||')',' or ') as where_condition,string_agg('('||table_id_where_condition||')',' or ') as table_id_where_condition,workflow_name,schema_drift_option, schema_drift_option_id
+from(
+select  data_movement_id,source_dataplace_id,source_schema_id,
+case when where_condition is null then 'schema_id = '|| source_schema_id || ' and table_type in ('||ingest_all_tables_views||')'||' and dataplace_id = '||source_dataplace_id
+          else string_agg('('||where_condition||')',' and ') over(partition by data_movement_id,source_dataplace_id,source_schema_id) || ' and schema_id = ' || source_schema_id || ' and table_type in ('||ingest_all_tables_views||')'||' and dataplace_id = '||source_dataplace_id end as where_condition,
+case when where_condition is null then 'schema_id = '|| source_schema_id ||' and dataplace_id = '||source_dataplace_id
+          else string_agg('('||where_condition||')',' and ') over(partition by data_movement_id,source_dataplace_id,source_schema_id) || ' and schema_id = ' || source_schema_id || ' and dataplace_id = '||source_dataplace_id end as table_id_where_condition,
+ingest_all_tables_views,workflow_name,schema_drift_option, schema_drift_option_id
+from(
+select  data_movement_id,source_dataplace_id,source_schema_id,
+string_agg('('||where_condition||')',' or ') over(partition by data_movement_id,source_dataplace_id,filter_type_id,source_schema_id) as where_condition,
+ingest_all_tables_views,workflow_name,schema_drift_option, schema_drift_option_id
+from (
+select a.data_movement_id, a.source_dataplace_id, a.source_schema_id, a.filter_type_id,workflow_name,
+case when a.filter_type_id = 1 then 'table_name ~* '''||regexp_replace(a.filter_rule::text,'\[|\]|"'::text,''::text,'g')||''''
+     when a.filter_type_id = 2 then 'table_name !~* '''||regexp_replace(a.filter_rule::text,'\[|\]|"'::text,''::text,'g')||''''
+     when a.filter_type_id = 3 then 'table_name like ''%'||regexp_replace(a.filter_rule::text,'\[|\]|"'::text,''::text,'g')||'%'''
+     when a.filter_type_id = 4 then 'table_name not like ''%'||regexp_replace(a.filter_rule::text,'\[|\]|"'::text,''::text,'g')||'%'''
+     when a.filter_type_id = 5 then 'table_id in ('||regexp_replace(a.filter_rule::text,'\[|\]|"'::text,''::text,'g')||')'
+     else null
+     end as where_condition,
+     regexp_replace(regexp_replace(a.ingest_all_tables_views::text,'"','''','g'),'\[|\]|'::text,''::text,'g') as ingest_all_tables_views,schema_drift_option, schema_drift_option_id
+from
+(
+select b.data_movement_id,source_dataplace_id,
+source_schema_directory_id as source_schema_id,destination_dataplace_id,destination_schema_directory_id as destination_schema_id,
+filter_rule,filter_type_id,
+ingest_all_tables_views,a.priority_order,d.workflow_name,
+case when ((((data_movement_additional_info->\>'flow_details')::json->\>'schema_drift')::json)->\>'advanced_options_sub_type') is null then 'drop_create_table' else ((((data_movement_additional_info->\>'flow_details')::json->\>'schema_drift')::json)->\>'advanced_options_sub_type') end as schema_drift_option,
+((((data_movement_additional_info->\>'flow_details')::json->\>'schema_drift')::json)->\>'advanced_options_sub_type_id')::int as schema_drift_option_id
+from nabu.data_movement_details_physical a
+inner join nabu.dataplace_physical dp
+on a.destination_dataplace_id =dp.dataplace_id
+inner join nabu.data_movement_physical b
+on a.data_movement_id = b.data_movement_id
+inner join nabu.workflow_engine c on c.workflow_engine_id = b.workflow_engine_id
+inner join nabu.bot_configuration_workflow d on d.workflow_id = b.workflow_id
+where b.data_movement_id = $templateData.input_data.data_movement_id$ and a.valid_to_ts = '9999-12-31'
+and b.valid_to_ts = '9999-12-31') a
+inner join nabu.filter_type_lookup b
+on a.filter_type_id = b.filter_type_id
+order by data_movement_id,priority_order
+) x
+) y
+) z
+group by data_movement_id,workflow_name,schema_drift_option, schema_drift_option_id
+
+>>
+
+flows_list_query(templateData) ::=<<
+with flows as(
+select 1 as task,
+'' as emptyOutputTemplate,
+'' as outputflows_template,
+'' as input_flows,
+cast((extract(epoch from now())*100) as bigint)::text||$templateData.input_data.job_schedule_id$||1 as flow_id,
+'fc_ingestion_flow_task' as flowtask_template,
+$if(first(templateData.nabu_ingestion))$ 'ingestion_'||'$templateData.input_data.data_movement_id$_$first(templateData.nabu_ingestion).batch_id$'
+$else$ 'ingestion_$templateData.input_data.batch_id$'$endif$ as flow_name,false as is_success_mail,'' as mail_type,
+'' as output_flows,1 as seq ,
+'nabu_ingestion' as task_data_key,
+$if(first(templateData.nabu_ingestion).batch_id)$
+$first(templateData.nabu_ingestion).batch_id$
+$else$ $templateData.input_data.batch_id$
+$endif$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+coalesce(data_movement_additional_info->'flow_details'->\>'flow_timeout',data_movement_additional_info->'flow_details'->\>'pipeline_flow_timeout','120') as flow_timeout,
+coalesce((data_movement_additional_info->\>'flow_details')::json->\>'parallel_count',
+(data_movement_additional_info->\>'flow_details')::json->\>'parallel_source_connections','10')
+ as parallel_count,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry_count','3'):: int as number_of_retries,
+true as loggers_required ,
+true as pre_agg_stats_required,
+$if((first(templateData.nabu_ingestion)))$true$else$false$endif$ as flow_condition
+from nabu.data_movement_physical dmp
+where dmp.data_movement_id = $templateData.input_data.data_movement_id$ and dmp.valid_to_ts = '9999-12-31'
+
+union all
+
+select 2 as task,
+'' as emptyOutputTemplate,
+'' as outputflows_template,
+'$if(first(templateData.nabu_ingestion))$"ingestion_$templateData.input_data.data_movement_id$_$first(templateData.nabu_ingestion).batch_id$.success"$endif$' as input_flows,
+cast((extract(epoch from now())*100) as bigint)::text||$templateData.input_data.job_schedule_id$||2 as flow_id,
+ 'end_mail_flow_task' as flowtask_template,
+'success_notification_email' as flow_name, true as is_success_mail,'success' as mail_type,
+'' as output_flows,1 as seq ,
+'email_input' as task_data_key,
+$if(first(templateData.nabu_ingestion).batch_id)$ $first(templateData.nabu_ingestion).batch_id$ $else$ $templateData.input_data.batch_id$$endif$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+coalesce(data_movement_additional_info->'flow_details'->\>'flow_timeout','120') as flow_timeout,
+coalesce(data_movement_additional_info->'flow_details'->\>'parallel_count','10') as parallel_count,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry_count','10'):: int as number_of_retries,
+ false as loggers_required , false as pre_agg_stats_required
+,$if(first(templateData.condition_for_success_mail).email_id && first(templateData.nabu_ingestion)  && (!first(templateData.input_data.manual_retry)))$true$else$false$endif$ as flow_condition
+from nabu.data_movement_physical dmp
+where dmp.data_movement_id = $templateData.input_data.data_movement_id$ and dmp.valid_to_ts = '9999-12-31'
+union all
+
+select 3 as task,
+'' as emptyOutputTemplate,
+'' as outputflows_template,
+'$if(first(templateData.nabu_ingestion))$"ingestion_$templateData.input_data.data_movement_id$_$first(templateData.nabu_ingestion).batch_id$.error"$endif$' as input_flows,
+cast((extract(epoch from now())*100) as bigint)::text||$templateData.input_data.job_schedule_id$||3 as flow_id,
+ 'end_mail_flow_task' as flowtask_template,
+'failure_notification_email' as flow_name, false as is_success_mail, 'failure' as mail_type,
+'' as output_flows,1 as seq ,'email_input' as task_data_key,
+$if(first(templateData.nabu_ingestion).batch_id)$ $first(templateData.nabu_ingestion).batch_id$ $else$ $templateData.input_data.batch_id$$endif$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+coalesce(data_movement_additional_info->'flow_details'->\>'flow_timeout','120') as flow_timeout,
+coalesce(data_movement_additional_info->'flow_details'->\>'parallel_count','10') as parallel_count,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry_count','10'):: int as number_of_retries,
+false as loggers_required , false as pre_agg_stats_required
+,$if(first(templateData.condition_for_failure_mail).email_id && first(templateData.nabu_ingestion)  && (!first(templateData.input_data.manual_retry)))$true$else$false$endif$ as flow_condition
+from nabu.data_movement_physical dmp
+where dmp.data_movement_id = $templateData.input_data.data_movement_id$ and dmp.valid_to_ts = '9999-12-31'
+
+union all
+select 4 as task,'' as emptyOutputTemplate,'' as outputflows_template,
+'$if(first(templateData.nabu_ingestion))$"ingestion_$templateData.input_data.data_movement_id$_$first(templateData.nabu_ingestion).batch_id$.flow_timeout"$endif$' as input_flows,
+cast((extract(epoch from now())*100) as bigint)::text||$templateData.input_data.job_schedule_id$||4 as flow_id,
+'timed_out_end_mail_flow_task' as flowtask_template,
+'flow_timeout_notification_email' as flow_name, false as is_success_mail, '' as mail_type,
+'' as output_flows,1 as seq ,'email_input' as task_data_key,
+$if(first(templateData.nabu_ingestion).batch_id)$ $first(templateData.nabu_ingestion).batch_id$ $else$ $templateData.input_data.batch_id$$endif$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+coalesce(data_movement_additional_info->'flow_details'->\>'flow_timeout','120') as flow_timeout,
+coalesce(data_movement_additional_info->'flow_details'->\>'parallel_count','10') as parallel_count,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry_count','10'):: int as number_of_retries,
+false as loggers_required , false as pre_agg_stats_required
+,$if(first(templateData.condition_for_failure_mail).email_id && first(templateData.nabu_ingestion)  && (!first(templateData.input_data.manual_retry)))$true$else$false$endif$ as flow_condition
+from nabu.data_movement_physical dmp
+where dmp.data_movement_id = $templateData.input_data.data_movement_id$ and dmp.valid_to_ts = '9999-12-31'
+
+union all
+select 5 as task,
+'' as emptyOutputTemplate,
+'' as outputflows_template,
+'' as input_flows,
+cast((extract(epoch from now())*100) as bigint)::text||$templateData.input_data.job_schedule_id$||5 as flow_id,
+ 'schema_drift_mail_flow_task' as flowtask_template,
+'schema_drift_notification_email' as flow_name, false as is_success_mail, 'schema_drift' as mail_type,
+'' as output_flows,1 as seq ,
+'email_input' as task_data_key,
+$if(first(templateData.nabu_ingestion).batch_id)$ $first(templateData.nabu_ingestion).batch_id$ $else$ $templateData.input_data.batch_id$$endif$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+coalesce(data_movement_additional_info->'flow_details'->\>'flow_timeout','120') as flow_timeout,
+coalesce(data_movement_additional_info->'flow_details'->\>'parallel_count','3') as parallel_count,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry_count','10'):: int as number_of_retries,
+false as loggers_required , false as pre_agg_stats_required
+,$if(first(templateData.condition_for_schema_drift_mail).email_id && first(templateData.schema_drift_table_info).schema_drifted_table_id_list   && (!first(templateData.input_data.manual_retry)) )$true$else$false$endif$ as flow_condition
+from nabu.data_movement_physical dmp
+where dmp.data_movement_id = $templateData.input_data.data_movement_id$ and dmp.valid_to_ts = '9999-12-31'
+
+union all
+select 6 as task,
+'' as emptyOutputTemplate,'' as outputflows_template,
+'$if(first(templateData.nabu_ingestion))$"ingestion_$templateData.input_data.data_movement_id$_$first(templateData.nabu_ingestion).batch_id$.success"$endif$' as input_flows,
+cast((extract(epoch from now())*100) as bigint)::text||$templateData.input_data.job_schedule_id$||6 as flow_id,
+'end_mail_flow_task_manual_retry' as flowtask_template,
+'success_notification_email_manual_retry' as flow_name, true as is_success_mail, 'success' as mail_type,
+'' as output_flows,
+1 as seq ,
+'email_input' as task_data_key,
+$if(first(templateData.nabu_ingestion).batch_id)$ $first(templateData.nabu_ingestion).batch_id$ $else$ $templateData.input_data.batch_id$$endif$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+coalesce(data_movement_additional_info->'flow_details'->\>'flow_timeout','120') as flow_timeout,
+coalesce(data_movement_additional_info->'flow_details'->\>'parallel_count','10') as parallel_count,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry_count','10'):: int as number_of_retries,
+false as loggers_required ,false as pre_agg_stats_required,
+$if(first(templateData.condition_for_success_mail).email_id && first(templateData.nabu_ingestion)  && (first(templateData.input_data.manual_retry)))$true$else$false$endif$ as flow_condition
+from nabu.data_movement_physical dmp
+where dmp.data_movement_id = $templateData.input_data.data_movement_id$ and dmp.valid_to_ts = '9999-12-31'
+
+union all
+select 7 as task,
+'' as emptyOutputTemplate,
+'' as outputflows_template,
+'$if(first(templateData.nabu_ingestion))$"ingestion_$templateData.input_data.data_movement_id$_$first(templateData.nabu_ingestion).batch_id$.error"$endif$' as input_flows,
+cast((extract(epoch from now())*100) as bigint)::text||$templateData.input_data.job_schedule_id$||7 as flow_id,
+'end_mail_flow_task_manual_retry' as flowtask_template,
+'failure_notification_email_manual_retry' as flow_name, false as is_success_mail, 'failure' as mail_type,
+'' as output_flows,1 as seq ,
+'email_input' as task_data_key,
+$if(first(templateData.nabu_ingestion).batch_id)$ $first(templateData.nabu_ingestion).batch_id$ $else$ $templateData.input_data.batch_id$$endif$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+coalesce(data_movement_additional_info->'flow_details'->\>'flow_timeout','120') as flow_timeout,
+coalesce(data_movement_additional_info->'flow_details'->\>'parallel_count','3') as parallel_count,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry_count','10'):: int as number_of_retries,
+false as loggers_required ,false as pre_agg_stats_required,
+$if(first(templateData.condition_for_failure_mail).email_id && first(templateData.nabu_ingestion)  && (first(templateData.input_data.manual_retry)))$true$else$false$endif$ as flow_condition
+from nabu.data_movement_physical dmp
+where dmp.data_movement_id = $templateData.input_data.data_movement_id$ and dmp.valid_to_ts = '9999-12-31'
+
+union all
+select 8 as task,
+'' as emptyOutputTemplate,
+'' as outputflows_template,
+'$if(first(templateData.nabu_ingestion))$"ingestion_$templateData.input_data.data_movement_id$_$first(templateData.nabu_ingestion).batch_id$.flow_timeout"$endif$' as input_flows,
+cast((extract(epoch from now())*100) as bigint)::text||$templateData.input_data.job_schedule_id$||8 as flow_id,
+ 'timed_out_end_mail_flow_task' as flowtask_template,
+'flow_timeout_notification_email_manual_retry' as flow_name, true as is_success_mail, '_manual_retry' as mail_type,
+'' as output_flows,1 as seq ,
+'email_input' as task_data_key,
+$if(first(templateData.nabu_ingestion).batch_id)$ $first(templateData.nabu_ingestion).batch_id$ $else$ $templateData.input_data.batch_id$$endif$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+coalesce(data_movement_additional_info->'flow_details'->\>'flow_timeout','120') as flow_timeout,
+coalesce(data_movement_additional_info->'flow_details'->\>'parallel_count','3') as parallel_count,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry_count','10'):: int as number_of_retries,
+false as loggers_required ,false as pre_agg_stats_required,
+$if(first(templateData.condition_for_failure_mail).email_id && first(templateData.nabu_ingestion) && (first(templateData.input_data.manual_retry)))$true$else$false$endif$ as flow_condition
+from nabu.data_movement_physical dmp
+where dmp.data_movement_id = $templateData.input_data.data_movement_id$ and dmp.valid_to_ts = '9999-12-31'
+)
+select * from flows where flow_condition=true order by  task asc
+>>
+
+condition_for_mail(templateData)::=<<
+select ((data_movement_additional_info->'flow_details'->\>'email_notification')::json->\>'email_check')::boolean  as  email_id from nabu.data_movement_physical where data_movement_id = $templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31'
+>>
+
+condition_for_schema_drift_mail(templateData)::=<<
+select ((data_movement_additional_info->'flow_details'->\>'schema_drift')::json->\>'enabled')::boolean as  email_id from nabu.data_movement_physical where data_movement_id = $templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31'
+
+>>
+
+condition_for_success_mail(templateData)::=<<
+select case when a.email_id='' then false else true end as email_id  from
+(select
+replace( trim(trailing ']' from trim( leading '[' from (data_movement_additional_info->'flow_details'->\>'email_notification')::json->\>'on_success' )),'"','')  as email_id
+from nabu.data_movement_physical where data_movement_id=$templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31')a
+>>
+
+condition_for_failure_mail(templateData)::=<<
+select case when a.email_id='' then false else true end as email_id  from
+(select
+replace( trim(trailing ']' from trim( leading '[' from (data_movement_additional_info->'flow_details'->\>'email_notification')::json->\>'on_failure' )),'"','')  as email_id
+from nabu.data_movement_physical where data_movement_id=$templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31')a
+>>
+
+number_of_tables_per_flow(templateData)::=<<
+1
+>>
+
+ingestion_object_info(templateData)::=<<
+$if(templateData.input_data.pipeline_retry)$
+with get_pipeline_table_ids as(
+select * from nabu.dataplace_table_metadata_physical
+where ($first(templateData.data_movement_info).where_condition$)
+and valid_to_ts = '9999-12-31'
+),
+
+get_success_tables as(
+select * from nabu.flow_task_status
+where data_movement_id=$templateData.input_data.data_movement_id$
+and batch_id = $first(templateData.get_batch_id).batch_id$
+and status_code_id = (select status_code_id from nabu.status_code_lookup where status_code = 'TASK_SUCCESS')
+),
+
+get_schema_drifted_table_ids as(
+$if(first(templateData.schema_drift_table_info).schema_drifted_table_id_list)$
+select a.dataplace_id,a.schema_id, a.schema_name, a.dataplace_component_type_id,a.table_id
+from nabu.table_schema_drift a
+where ($first(templateData.data_movement_info).table_id_where_condition$)
+and table_id in ($first(templateData.schema_drift_table_info).schema_drifted_table_id_list$)
+and '$first(templateData.data_movement_info).schema_drift_option$' = 'ignore_table'
+$else$
+select a.dataplace_id,a.schema_id, a.schema_name, a.dataplace_component_type_id,a.table_id
+from nabu.table_schema_drift a
+where 1 = 0
+$endif$
+),
+table_ids_for_ingestion as(
+select rows/$number_of_tables_per_flow(templateData)$ as flow_number,a.*
+from (
+select row_number()over(order by a.table_id) as rows,a.*, $first(templateData.get_batch_id).batch_id$ as batch_id,
+$templateData.input_data.data_movement_id$ as data_movement_id
+from get_pipeline_table_ids a left outer join get_schema_drifted_table_ids b
+on a.table_id = b.table_id
+and a.schema_id = b.schema_id
+and a.schema_name = b.schema_name
+and a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+where a.table_id not in (select object_id from get_success_tables)
+and b.table_id is  null
+$if(first(templateData.get_datatype_ignore_tables).object_id)$and a.table_id not in ($(first(templateData.get_datatype_ignore_tables).object_id)$) $endif$
+$if(first(templateData.input_data.ignore_null_tables_flag))$and table_id not in($(first(templateData.get_ignore_null_tables).object_id)$)$endif$
+)a
+),
+
+$get_last_run_timestamp("table_ids_for_ingestion")$
+
+select  $first(templateData.get_batch_id).batch_id$ as batch_id,
+       '$templateData.input_data.batch_name$' as batch_name,
+       $templateData.input_data.data_movement_id$ as data_movement_id,
+       '$templateData.input_data.environment$' as environment,
+       $templateData.input_data.job_schedule_id$ as job_schedule_id,
+       $first(templateData.job_type_id).job_type_id$ as job_type_id,
+       '$templateData.input_data.destination_type$' as type,
+       '$templateData.input_data.job_scheduled_user_id$' as job_scheduled_user_id,
+       case when b.flow_task_ts is null then '0001-01-01 00:00:00'::timestamp else b.flow_task_ts end as last_run_timestamp,
+       '{$templateData.input_data.workflow_route_bot_topic_details:{k | "$k$" : "$templateData.input_data.workflow_route_bot_topic_details.(k)$"}; separator=","$}' :: json as workflow_route_bot_topic_details,
+       '$first(templateData.data_movement_info).workflow_name$' as workflow_name,
+        cast((extract(epoch from now())*1000) as bigint)::text||flow_number :: text as process_id,
+        a.table_id  as where_condition,
+        flow_number
+        from table_ids_for_ingestion a
+        left outer join get_last_run_timestamp b
+        on a.table_id = b.object_id
+$elseif(templateData.input_data.manual_retry)$
+
+with error_table_ids as(
+select json_array_elements_text(object_id)::int as table_id
+from nabu.job_schedule_details jsd
+where data_movement_id =$templateData.input_data.data_movement_id$ and job_schedule_id=$templateData.input_data.job_schedule_id$ and valid_to_ts='9999-12-31'
+),
+vaild_table_ids as(
+select rows/$number_of_tables_per_flow(templateData)$ as flow_number,table_id from (
+select row_number()over(order by dtmp.table_id) as rows,dtmp.table_id
+from nabu.dataplace_table_metadata_physical dtmp
+inner join error_table_ids eti on dtmp.table_id=eti.table_id where valid_to_ts='9999-12-31'
+$if(first(templateData.input_data.ignore_null_tables_flag))$and table_id not in($(first(templateData.get_ignore_null_tables).object_id)$)$endif$
+)a
+),
+--select * from vaild_table_ids
+
+$get_last_run_timestamp("vaild_table_ids")$
+
+select  $first(templateData.get_batch_id).batch_id$ as batch_id,
+       '$templateData.input_data.batch_name$' as batch_name,
+       $templateData.input_data.data_movement_id$ as data_movement_id,
+       '$templateData.input_data.environment$' as environment,
+       $templateData.input_data.job_schedule_id$ as job_schedule_id,
+       $first(templateData.job_type_id).job_type_id$ as job_type_id,
+       $templateData.input_data.manual_retry$ as manual_retry,
+       '$templateData.input_data.destination_type$' as type,
+       '$templateData.input_data.job_scheduled_user_id$' as job_scheduled_user_id,
+       case when b.flow_task_ts is null then '0001-01-01 00:00:00'::timestamp else b.flow_task_ts end as last_run_timestamp,
+       '{$templateData.input_data.workflow_route_bot_topic_details:{k | "$k$" : "$templateData.input_data.workflow_route_bot_topic_details.(k)$"}; separator=","$}' :: json as workflow_route_bot_topic_details,
+       '$first(templateData.data_movement_info).workflow_name$' as workflow_name,
+       cast((extract(epoch from now())*1000) as bigint)::text||flow_number :: text as process_id,
+       table_id  as where_condition,flow_number
+       from vaild_table_ids a
+       left outer join get_last_run_timestamp b
+       on a.table_id = b.object_id
+
+$else$
+with cte2 as(
+select rows/$number_of_tables_per_flow(templateData)$ as flow_number,*
+from (
+select row_number()over(order by table_id) as rows, table_id from nabu.dataplace_table_metadata_physical
+where ($first(templateData.data_movement_info).where_condition$) and valid_to_ts='9999-12-31'
+$if(first(templateData.get_schema_drift_ignore_tables).object_id)$and table_id not in ($(first(templateData.get_schema_drift_ignore_tables).object_id)$)$endif$
+$if(first(templateData.get_datatype_ignore_tables).object_id)$and table_id not in($(first(templateData.get_datatype_ignore_tables).object_id)$)$endif$
+$if(first(templateData.input_data.ignore_null_tables_flag))$and table_id not in($(first(templateData.get_ignore_null_tables).object_id)$)$endif$
+)a
+),
+
+$get_last_run_timestamp("cte2")$
+
+select  $templateData.input_data.batch_id$ as batch_id,
+       '$templateData.input_data.batch_name$' as batch_name,
+       $templateData.input_data.data_movement_id$ as data_movement_id,
+       '$templateData.input_data.environment$' as environment,
+       $first(templateData.job_type_id).job_type_id$ as job_type_id,
+       '$templateData.input_data.destination_type$' as type,
+       $templateData.input_data.job_schedule_id$ as job_schedule_id,
+       '$templateData.input_data.job_scheduled_user_id$' as job_scheduled_user_id,
+       case when b.flow_task_ts is null then '0001-01-01 00:00:00'::timestamp else b.flow_task_ts end as last_run_timestamp,
+        '{$templateData.input_data.workflow_route_bot_topic_details:{k | "$k$" : "$templateData.input_data.workflow_route_bot_topic_details.(k)$"}; separator=","$}' :: json as workflow_route_bot_topic_details,
+       '$first(templateData.data_movement_info).workflow_name$' as workflow_name,
+       cast((extract(epoch from now())*1000) as bigint)::text||flow_number :: text as process_id,
+        table_id  as where_condition,flow_number
+        from cte2 a
+        left outer join get_last_run_timestamp b
+        on a.table_id = b.object_id
+$endif$
+>>
+
+get_batch_id(templateData)::=<<
+with get_batch_id as (
+select batch_id,row_number()over(order by flow_ts desc) as latest_flow_ts,flow_ts
+from (
+select   fst.batch_id,max(flow_ts) as flow_ts
+from nabu.flow_status fst
+inner join (select distinct batch_id from nabu.flow_task_status where data_movement_id = $templateData.input_data.data_movement_id$) b
+on fst.batch_id = b.batch_id
+group by fst.batch_id
+)a
+)
+select batch_id from get_batch_id where latest_flow_ts = 1
+>>
+
+get_last_run_timestamp(cte_name)::=<<
+get_last_run_timestamp as (
+    select flow_task_ts, object_id from (
+    	select flow_task_ts, object_id,
+    	row_number() over( partition by data_movement_id, object_id order by flow_task_ts desc ) as rownum
+    	from nabu.flow_task_status
+    	where process_id in (
+    				select process_id from (
+    						select process_id, row_number() over( partition by data_movement_id, object_id order by flow_task_ts desc ) as rownum
+    						from nabu.flow_task_status
+    						where data_movement_id = $templateData.input_data.data_movement_id$
+    						and object_id in ( select table_id from $cte_name$ )
+    						and status_code_id = 15
+    				)a
+    				where rownum = 1
+    	)
+    	and status_code_id = 19
+    )b
+    where rownum = 1
+)
+>>
+
+email_input(templateData)::=<<
+select $templateData.input_data.batch_id$ as batch_id,
+       '$templateData.input_data.batch_name$' as batch_name,
+       $templateData.input_data.data_movement_id$ as data_movement_id,
+       $templateData.input_data.job_schedule_id$ as job_schedule_id,
+       '$templateData.input_data.job_scheduled_user_id$' as job_scheduled_user_id,
+       '$first(templateData.data_movement_info).workflow_name$' as workflow_name,
+	   cast((extract(epoch from now())*1000) as bigint)::text||workflow_engine_id :: text as process_id,
+	   '{$templateData.input_data.workflow_route_bot_topic_details:{k | "$k$" : "$templateData.input_data.workflow_route_bot_topic_details.(k)$"}; separator=","$}' :: json as workflow_route_bot_topic_details,
+       'email_notification_enable' as flow_name,15 as job_type_id,
+       '$templateData.input_data.environment$' as environment from nabu.data_movement_physical where data_movement_id = $templateData.input_data.data_movement_id$
+>>
+
+pipeline_pre_conditions_check(templateData)::=<<
+with get_pipeline_pre_conditions as (
+select (pre_conditions->\>'data_movement_id'):: int  as data_movement_id ,(pre_conditions->\>'status_code_id' ):: int as status_code_id,
+pipeline_timeout,enabled
+from (
+select json_array_elements(data_movement_additional_info#>'{flow_details,pre_conditions,pipeline_details}') as pre_conditions,
+data_movement_additional_info->'flow_details'->'pre_conditions'->\>'pipeline_timeout' as pipeline_timeout,
+data_movement_additional_info->'flow_details'->'pre_conditions'->\>'enabled' as enabled
+from nabu.data_movement_physical
+where data_movement_id = $templateData.query_input.data_movement_id$ and valid_to_ts = '9999-12-31'
+)a
+),
+--getting the latest record of the pre_req pipeline's
+latest_record_of_dm as (
+select * from (
+select count(b.data_movement_id) over(partition by b.data_movement_id) as dm_record_count,
+row_number()over(partition by b.data_movement_id order by flow_ts desc) as latest_record,a.data_movement_id, a.pipeline_timeout, a.enabled,
+b.status_code_id , a.status_code_id as pipeline_pre_condition_status_code_id
+from get_pipeline_pre_conditions a
+left outer join nabu.flow_status b
+on a.data_movement_id  = b.data_movement_id
+)a
+where latest_record = 1
+),
+--checking if the given conditions are matched or not
+pipeline_pre_conditions_check as (
+select count(pipeline_pre_condition_check) over(partition by pipeline_pre_condition_check) as pre_condition_status_cnt,
+*
+from (
+select case when dm_record_count = 0 then 'not_matched'
+            when status_code_id in (11,24) then 'running'
+            when pipeline_pre_condition_status_code_id = 21 and status_code_id in (12,13,23,25,29,32) then 'matched'
+            when pipeline_pre_condition_status_code_id = status_code_id then 'matched'
+            when pipeline_pre_condition_status_code_id = 13 and status_code_id in (13,23,25,29,32) then 'matched'
+            else 'not_matched' end as pipeline_pre_condition_check,
+            pipeline_timeout,enabled
+from latest_record_of_dm
+)a
+)
+select case when running_count > 0 then 'running'
+            when running_count = 0 and pre_condition_not_matched_count > 0 then 'failed'
+            when running_count = 0 and pre_condition_not_matched_count = 0 then 'success'
+            else 'failed' end as pipeline_pre_conditions_check,
+            pipeline_timeout,enabled
+from (
+select max(case when pipeline_pre_condition_check = 'matched' then pre_condition_status_cnt else 0 end ) as pre_condition_matched_count,
+max(case when pipeline_pre_condition_check = 'not_matched' then pre_condition_status_cnt else 0 end ) as pre_condition_not_matched_count,
+max(case when pipeline_pre_condition_check = 'running' then pre_condition_status_cnt else 0 end ) as running_count,
+pipeline_timeout :: int,enabled
+from pipeline_pre_conditions_check
+group by pipeline_timeout,enabled
+)a
+>>
+
+insert_pipeline_dependency_status(templateData)::=<<
+INSERT INTO nabu.flow_status
+(flow_id, flow_name, batch_id, status_code_id, number_of_flow_tasks, flow_ts, job_type_id,data_movement_id,job_schedule_id)
+VALUES($templateData.query_input.batch_id$, '$templateData.query_input.job_type$_$templateData.query_input.data_movement_id$_$templateData.query_input.batch_id$', $templateData.query_input.batch_id$,
+(select status_code_id from nabu.status_code_lookup where status_code_type = 'PIPELINE_DEPENDENCY_CHECK' and status_code = '$templateData.pipeline_dependency_status$')
+, 0, now(),
+(select job_type_id from nabu.job_type_lookup where job_type = '$templateData.query_input.job_type$'),
+$templateData.query_input.data_movement_id$,$templateData.query_input.job_schedule_id$);
+
+>>
+
+get_schema_drift_ignore_tables(templateData)::=<<
+with cte2 as(
+select rows/$number_of_tables_per_flow(templateData)$ as flow_number,*
+from (
+select row_number()over(order by table_id) as rows,* from nabu.dataplace_table_metadata_physical
+where ($first(templateData.data_movement_info).where_condition$) and valid_to_ts='9999-12-31'
+)a
+),
+get_schema_drifted_table_ids as(
+$if(first(templateData.schema_drift_table_info).schema_drifted_table_id_list)$
+select a.dataplace_id,a.schema_id, a.schema_name, a.dataplace_component_type_id,a.table_id
+from nabu.table_schema_drift a
+where ($first(templateData.data_movement_info).table_id_where_condition$)
+and table_id in ($first(templateData.schema_drift_table_info).schema_drifted_table_id_list$)
+and '$first(templateData.data_movement_info).schema_drift_option$' = 'ignore_table'
+$else$
+select a.dataplace_id,a.schema_id, a.schema_name, a.dataplace_component_type_id,a.table_id
+from nabu.table_schema_drift a
+where 1 = 0
+$endif$
+),
+table_ids_for_ingestion as(
+select a.* from cte2 a left outer join get_schema_drifted_table_ids b
+on a.table_id = b.table_id
+and a.schema_id = b.schema_id
+and a.schema_name = b.schema_name
+and a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+where b.table_id is not null)
+
+select string_agg(a.table_id::text,',') as object_id,
+30 as status_code_id,
+0 as retry_count
+from table_ids_for_ingestion a
+>>
+
+insert_schema_drift_ignore_tables(templateData)::=<<
+INSERT INTO nabu.flow_task_status
+(data_movement_id,  batch_id,job_type_id, status_code_id, retry_count,object_id,process_id, flow_task_ts, flow_task_date)
+with cte as (
+select $templateData.input_data.data_movement_id$ as data_movement_id , $if(templateData.input_data.pipeline_retry)$ $first(templateData.get_batch_id).batch_id$ as batch_id $else$ $templateData.input_data.batch_id$ as batch_id $endif$,$first(templateData.job_type_id).job_type_id$ as job_type_id,$(first(templateData.get_schema_drift_ignore_tables).status_code_id)$ as status_code_id,$(first(templateData.get_schema_drift_ignore_tables).retry_count)$ as retry_count,
+unnest(string_to_array('$(first(templateData.get_schema_drift_ignore_tables).object_id)$',',' ))::int4 as object_id
+)
+select a.data_movement_id,a.batch_id,a.job_type_id,a.status_code_id,a.retry_count,a.object_id,(cast((extract(epoch from now())*1000) as bigint)::text||a.flow_number:: text)::int8 as process_id,current_timestamp,current_date from (select cte.*,row_number ()over( order by cte.object_id )as flow_number from cte)a
+
+>>
+
+get_datatype_ignore_tables(templateData)::=<<
+with datatypes_to_be_ignored as (
+ select replace((json_array_elements(data_movement_additional_info->'flow_details'->'ignore_data_types'))::text,'"','') as ignore_data_types
+ from nabu.data_movement_physical
+ where data_movement_id =$templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31'
+ union
+ select source_datatype_name as ignore_data_types from nabu.user_defined_trans_for_unsupported_datatype udtfud where advanced_options_sub_type_id =16 and
+	data_movement_id =$templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31'
+),
+get_table_ids as(
+select table_id from nabu.dataplace_table_metadata_physical dtmp where ($first(templateData.data_movement_info).where_condition$) and valid_to_ts='9999-12-31'
+),
+tables_with_valid_column_data_types as (
+select table_id, count(*) as cnt
+from nabu.dataplace_column_metadata_physical
+where table_id in(select * from get_table_ids) and valid_to_ts='9999-12-31'
+$if(first(templateData.get_schema_drift_ignore_tables).object_id)$ and table_id not in($first(templateData.get_schema_drift_ignore_tables).object_id$)$endif$
+and data_type not in ( select * from datatypes_to_be_ignored ) group by table_id
+),
+datatype_ignored_tables as (
+select a.table_id, case when b.cnt is null then true when b.cnt is not null then false end as ignore_status_flag
+from get_table_ids a
+left outer join tables_with_valid_column_data_types b on a.table_id = b.table_id
+$if(first(templateData.get_schema_drift_ignore_tables).object_id)$ where a.table_id not in($first(templateData.get_schema_drift_ignore_tables).object_id$)$endif$
+),
+ignored_tables_in_pipeline_adv_opt as(
+Select * from datatype_ignored_tables where table_id not in (select object_id from nabu.advanced_options_object_details aood where data_movement_id = $templateData.input_data.data_movement_id$  and valid_to_ts = '9999-12-31')
+)
+select string_agg(a.table_id::text,',') as object_id,
+ 31 as status_code_id,
+ 0 as retry_count
+ from ignored_tables_in_pipeline_adv_opt a where ignore_status_flag=true
+>>
+
+insert_datatype_ignore_tables(templateData)::=<<
+INSERT INTO nabu.flow_task_status
+(data_movement_id,batch_id,job_type_id, status_code_id, retry_count,object_id,process_id, flow_task_ts, flow_task_date)
+with cte as (
+select $templateData.input_data.data_movement_id$ as data_movement_id ,$if(templateData.input_data.pipeline_retry || templateData.input_data.manual_retry)$ $first(templateData.get_batch_id).batch_id$ as batch_id $else$ $templateData.input_data.batch_id$ as batch_id $endif$,$first(templateData.job_type_id).job_type_id$ as job_type_id,$(first(templateData.get_datatype_ignore_tables).status_code_id)$ as status_code_id,$(first(templateData.get_datatype_ignore_tables).retry_count)$ as retry_count,
+unnest(string_to_array('$(first(templateData.get_datatype_ignore_tables).object_id)$',',' ))::int4 as object_id
+)
+select a.data_movement_id,a.batch_id,a.job_type_id,a.status_code_id,a.retry_count,a.object_id,(cast((extract(epoch from now())*1000) as bigint)::text || a.flow_number:: text)::int8 as process_id,current_timestamp,current_date from (select cte.*,row_number ()over( order by cte.object_id )as flow_number from cte)a
+
+>>
+
+get_ignore_null_tables(templateData)::=<<
+with ignored_null_tables as(
+select table_id from nabu.dataplace_table_metadata_physical a
+where ($first(templateData.data_movement_info).where_condition$) and valid_to_ts = '9999-12-31' and (a.estimated_rows = null or a.estimated_rows = 0)
+)
+select string_agg(a.table_id::text,',') as object_id,
+ 38 as status_code_id,
+ 0 as retry_count
+ from ignored_null_tables a
+>>
+
+insert_ignore_null_tables(templateData)::=<<
+INSERT INTO nabu.flow_task_status
+(data_movement_id,batch_id,job_type_id, status_code_id, retry_count,object_id,process_id, flow_task_ts, flow_task_date)
+with cte as (
+select $templateData.input_data.data_movement_id$ as data_movement_id ,$if(templateData.input_data.pipeline_retry || templateData.input_data.manual_retry)$ $first(templateData.get_batch_id).batch_id$ as batch_id $else$ $templateData.input_data.batch_id$ as batch_id $endif$,$first(templateData.job_type_id).job_type_id$ as job_type_id,$(first(templateData.get_ignore_null_tables).status_code_id)$ as status_code_id,$(first(templateData.get_ignore_null_tables).retry_count)$ as retry_count,
+unnest(string_to_array('$(first(templateData.get_ignore_null_tables).object_id)$',',' ))::int4 as object_id
+)
+select a.data_movement_id,a.batch_id,a.job_type_id,a.status_code_id,a.retry_count,a.object_id,(cast((extract(epoch from now())*1000) as bigint)::text || a.flow_number:: text)::int8 as process_id,current_timestamp,current_date from (select cte.*,row_number ()over( order by cte.object_id )as flow_number from cte)a
+
+>>
+
+get_scheduled_details(templateData)::=<<
+select dm.data_movement_id,
+case when jsd.job_type_id = 6 then true else false end as manual_retry,
+coalesce(data_movement_additional_info->'flow_details'->\>'retry',data_movement_additional_info->'flow_details'->\>'pipeline_retry','false') :: boolean as pipeline_retry,
+coalesce(data_movement_additional_info->'flow_details'->'pre_conditions'->\>'enabled','false') :: boolean as pipeline_pre_conditions_enabled,
+coalesce(data_movement_additional_info->'flow_details'->\>'ignore_null_tables','false') :: boolean as ignore_null_tables_flag
+from nabu.data_movement_physical dm
+inner join nabu.job_schedule_details jsd
+on jsd.data_movement_id =dm.data_movement_id
+where  jsd.valid_to_ts ='9999-12-31'
+and dm.valid_to_ts = '9999-12-31' and dm.data_movement_id=$templateData.query_input.data_movement_id$ and jsd.job_schedule_id=$templateData.query_input.job_schedule_id$
+>>
+
+fetching_the_requirements_and_inserting_failed_status(templateData)::=<<
+{
+  "input_data": $data_movement_input(templateData.query_input)$,
+   "sequential_templates":[
+      {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "fetching_the_requirements",
+        "query_output_key": "input_of_data_movement",
+        "query_type":"select"
+      },
+      {
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "fetch_job_type_id",
+        "query_output_key": "fetch_job_type_id",
+        "query_type":"select"
+      }
+      $if(!templateData.query_input.botLogicOutputMap.is_pipeline_pre_conditions_satisfied)$
+      ,{
+        "query_template_group": "templates/artifact_ingestion/ingestion_fc.stg",
+        "query_template_name": "insert_failed_status_of_pre_requisite_pipelines",
+        "query_output_key": "status_insertion",
+        "query_type":"insert"
+      },
+      $endif$
+    ],
+  "output_keys":["input_of_data_movement"]
+}
+>>
+
+data_movement_input(templateData)::=<<
+{
+ "data_movement_id" : $templateData.query_input.data_movement_id$,
+ "batch_id" : $templateData.query_input.batch_id$,
+ "batch_name" : "$templateData.query_input.batch_name$",
+ "environment" : "$templateData.query_input.environment$",
+ "pipeline_retry" : "$templateData.query_input.pipeline_retry$",
+ "include_blobs" : "$templateData.query_input.include_blobs$",
+ "manual_retry" : $templateData.query_input.manual_retry$,
+ "job_schedule_id" : $templateData.query_input.job_schedule_id$,
+ "job_scheduled_user_id" : "$templateData.query_input.job_scheduled_user_id$",
+ "job_type" : "$templateData.query_input.job_type$",
+ "destination_type" : "$templateData.query_input.destination_type$",
+ "workflow_engine_id" : $templateData.query_input.workflow_engine_id$,
+ "bot_topic_prefix" : "$templateData.query_input.bot_topic_prefix$",
+ "ignore_null_tables_flag" : $templateData.query_input.ignore_null_tables_flag$,
+ "workflow_route_bot_topic_details" : {$templateData.query_input.workflow_route_bot_topic_details:{k | "$k$" : "$templateData.query_input.workflow_route_bot_topic_details.(k)$"}; separator=","$},
+ "is_pipeline_pre_conditions_satisfied" : $templateData.botLogicOutputMap.is_pipeline_pre_conditions_satisfied$,
+ "is_pipeline_pre_conditions_timedout" : $templateData.botLogicOutputMap.is_pipeline_pre_conditions_timedout$
+ }
+>>
+
+fetching_the_requirements(templateData)::=<<
+select $templateData.input_data.data_movement_id$ as data_movement_id,
+$templateData.input_data.batch_id$ as batch_id,
+'$templateData.input_data.batch_name$' as batch_name,
+'$templateData.input_data.environment$' as environment,
+$templateData.input_data.pipeline_retry$ as pipeline_retry,
+'$templateData.input_data.include_blobs$' as include_blobs,
+$templateData.input_data.manual_retry$ as manual_retry,
+$templateData.input_data.job_schedule_id$ as job_schedule_id,
+'$templateData.input_data.job_scheduled_user_id$' as job_scheduled_user_id,
+'$templateData.input_data.job_type$' as job_type,
+'$templateData.input_data.destination_type$' as destination_type,
+$templateData.input_data.workflow_engine_id$ as workflow_engine_id,
+'$templateData.input_data.bot_topic_prefix$' as bot_topic_prefix,
+$templateData.input_data.ignore_null_tables_flag$ as ignore_null_tables_flag,
+'{$templateData.input_data.workflow_route_bot_topic_details:{k | "$k$" : "$templateData.input_data.workflow_route_bot_topic_details.(k)$"}; separator=","$}' :: json as workflow_route_bot_topic_details
+>>
+
+insert_failed_status_of_pre_requisite_pipelines(templateData)::=<<
+INSERT INTO nabu_ui.data_movement_pre_aggregate_stats
+(data_movement_id, batch_id, job_type_id, total_count, success_count, failed_count, source_dataplace_count, tables_count, views_count, collections_count, files_count, columns_count, fields_count, objects_size, dm_status_code, start_ts, end_ts, crt_ts, status_code_id,job_schedule_id)
+values($templateData.input_data.data_movement_id$,$templateData.input_data.batch_id$,$first(templateData.fetch_job_type_id).job_type_id$,0,0,0,0,0,0,0,0,0,0,0,'Failed',now(),now(),now(),$if(templateData.input_data.is_pipeline_pre_conditions_timedout)$25$else$23$endif$,$templateData.input_data.job_schedule_id$);
+
+INSERT INTO nabu_ui.data_movement_pre_aggregate_stats_archive_log
+(data_movement_id, batch_id, job_type_id, total_count, success_count, failed_count, source_dataplace_count, tables_count, views_count, collections_count, files_count, columns_count, fields_count, objects_size, dm_status_code, start_ts, end_ts, crt_ts, status_code_id,job_schedule_id)
+values($templateData.input_data.data_movement_id$,$templateData.input_data.batch_id$,$first(templateData.fetch_job_type_id).job_type_id$,0,0,0,0,0,0,0,0,0,0,0,'Failed',now(),now(),now(),$if(templateData.input_data.is_pipeline_pre_conditions_timedout)$25$else$23$endif$,$templateData.input_data.job_schedule_id$);
+>>

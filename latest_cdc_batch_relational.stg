@@ -1,0 +1,1510 @@
+staging_cdc_table_metadata_from_source_deletequery2(data) ::= <<
+delete from staging.src_table_entity_from_source_with_num_columns_$data.resourceId$ ;
+>>
+
+staging_cdc_table_metadata_from_source_updatequery2(data) ::= <<
+insert into  staging.src_table_entity_from_source_with_num_columns_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_name, table_owner, status, estimated_rows, num_of_columns, inserts, updates, deletes, create_table_ts, modify_table_ts, table_size, table_layer, location_path, tablespace_name, table_type, table_format, is_encrypted, is_compressed, table_type_owner, query)
+with tmp as  (
+select  dataplace_id, dataplace_component_type_id, schema_id , trim(schema_name) as schema_name  , trim(table_owner) as  table_owner ,  trim(table_name) as table_name  ,  count(*)  as num_of_columns  from staging.column_metadata_from_dataplace_$data.resourceId$  group by  dataplace_id, dataplace_component_type_id, schema_id,  schema_name, table_owner, table_name
+)
+select a.dataplace_id, rc.schema_id, a.dataplace_component_type_id, a.schema_name, a.table_name, a.table_owner, a.status, a.estimated_rows, b.num_of_columns, a.inserts, a.updates, a.deletes, a.create_table_ts, a.modify_table_ts, a.table_size, a.table_layer, a.location_path, a.tablespace_name, a.table_type, a.table_format, a.is_encrypted, a.is_compressed, a.table_type_owner, a.query from ( select dataplace_id,schema_id, dataplace_component_type_id,trim(schema_name) as schema_name , trim(table_name) as table_name , trim(table_owner) as table_owner , status, estimated_rows, num_of_columns, inserts, updates, deletes, create_table_ts, modify_table_ts, table_size, table_layer, location_path, tablespace_name, table_type, table_format, is_encrypted, is_compressed, table_type_owner, query  from  staging.table_metadata_from_dataplace_$data.resourceId$  ) a inner join tmp b
+on
+a.schema_name = b.schema_name
+and a.table_name = b.table_name
+inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc
+on a.schema_name=rc.schema_name
+and a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+>>
+
+staging_cdc_table_metadata_from_source_analyze_query2(data)::=<<
+analyze staging.src_table_entity_from_source_with_num_columns_$data.resourceId$
+>>
+
+staging_cdc_table_metadata_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_dataplace_table_metadata_update_$data.resourceId$;
+>>
+
+
+staging_cdc_table_metadata_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_dataplace_table_metadata_update_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name, table_owner, status, estimated_rows, inserts, updates, deletes, create_table_ts, modify_table_ts, table_size, num_of_columns, table_layer, location_path, tablespace_name, table_type, table_format, is_encrypted, is_compressed, table_type_owner, lineage_uuid, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+    select dataplace_id,schema_id,dataplace_component_type_id,schema_name as schema_name,table_id,
+    table_name,table_owner,status,estimated_rows,inserts,updates,
+    deletes,create_table_ts,modify_table_ts,table_size,num_of_columns,table_layer,location_path,tablespace_name,
+    table_type,table_format,is_encrypted,is_compressed,table_type_owner,lineage_uuid,valid_from_ts,
+    case when source='O' then current_timestamp  else valid_to_ts end as valid_to_ts ,crawl_id,prev_crawl_id,source
+    from(
+        select count(*) over (partition by dataplace_id,dataplace_component_type_id,schema_id,schema_name,table_id,
+        coalesce(table_name,''),coalesce(table_owner,''),coalesce(status,''),coalesce(table_type,''),coalesce(estimated_rows,-9999),coalesce(num_of_columns,-9999),
+		coalesce(table_size,-9999)) as cnt,c.*
+        from(
+            select 'O'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,a.table_id,a.table_name,
+            a.table_owner,a.status,a.estimated_rows,a.inserts,a.updates,a.deletes,a.create_table_ts,a.modify_table_ts,a.table_size,a.num_of_columns,
+            a.table_layer,a.location_path,a.tablespace_name,a.table_type,a.table_format,a.is_encrypted,a.is_compressed,a.table_type_owner,
+            a.lineage_uuid,a.valid_from_ts,a.valid_to_ts,a.crawl_id,a.prev_crawl_id
+            from(
+            select
+                dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,table_id,
+                trim(table_name) as table_name ,trim(table_owner) as table_owner,status,estimated_rows,inserts,updates,
+                deletes,create_table_ts,modify_table_ts,table_size,num_of_columns,table_layer,location_path,tablespace_name,
+                table_type,table_format,is_encrypted,is_compressed,table_type_owner,lineage_uuid,valid_from_ts,
+                valid_to_ts,crawl_id,prev_crawl_id
+                from nabu.dataplace_table_metadata_physical where valid_to_ts='9999-12-31'::date and dataplace_id in
+                ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) a inner join
+                (select dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,
+                 trim(table_name) as table_name ,trim(table_owner) as table_owner,status,estimated_rows,num_of_columns,inserts,
+                 updates,deletes,create_table_ts,modify_table_ts,table_size,table_layer,location_path,tablespace_name,
+                 table_type,table_format,is_encrypted,is_compressed,table_type_owner,query from
+                 staging.src_table_entity_from_source_with_num_columns_$data.resourceId$ ) b
+                    on a.dataplace_id=b.dataplace_id
+                    and a.dataplace_component_type_id=b.dataplace_component_type_id
+                    and a.schema_name=b.schema_name
+                    and a.table_name=b.table_name
+
+            union all
+
+            select 'N'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,b.table_id as table_id,
+            a.table_name,a.table_owner,a.status,a.estimated_rows,a.inserts,a.updates,a.deletes,a.create_table_ts,a.modify_table_ts,
+            a.table_size,a.num_of_columns,a.table_layer,a.location_path,a.tablespace_name,a.table_type,a.table_format,
+            a.is_encrypted,a.is_compressed,a.table_type_owner,null as lineage_uuid,
+            current_timestamp as valid_from_ts,'9999-12-31'::date valid_to_ts,($getCrawlId(first(data.getNewCrawlJobInfo))$) as crawl_id,case when b.crawl_id is null then
+            p.prev_crawl_id else b.crawl_id end as prev_crawl_id
+                from(select dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,
+                    trim(table_name) as table_name ,trim(table_owner) as table_owner,status,estimated_rows,num_of_columns,
+                    inserts,updates,deletes,create_table_ts,modify_table_ts,table_size,table_layer,location_path,
+                    tablespace_name,table_type,table_format,is_encrypted,is_compressed,table_type_owner,query
+                    from staging.src_table_entity_from_source_with_num_columns_$data.resourceId$ ) a
+                    left outer join (select dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,
+                                     trim(table_name) as table_name ,trim(table_owner) as table_owner,table_id,crawl_id
+                                     from nabu.dataplace_table_metadata_physical where valid_to_ts='9999-12-31'::date and dataplace_id in
+                                      ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                                      in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$) ) b
+                                      on a.dataplace_id=b.dataplace_id
+                                      and a.dataplace_component_type_id=b.dataplace_component_type_id
+                                      and a.schema_name=b.schema_name
+                                      and a.table_name=b.table_name
+					left outer join (select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+					where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$ and dataplace_id = $data.sourceAttributes.dataplace_id$) p
+					on p.schema_directory_id = a.schema_id
+                    )c
+                )d
+                where cnt=1;
+>>
+
+staging_cdc_table_metadata_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_dataplace_table_metadata_update_$data.resourceId$;
+>>
+
+staging_cdc_temp_src_table_entity_delete_deletequery1(data) ::= <<
+delete from staging.temp_dataplace_table_metadata_delete_$data.resourceId$ ;
+>>
+
+
+staging_cdc_temp_src_table_entity_delete_insertquery1(data) ::= <<
+insert into staging.temp_dataplace_table_metadata_delete_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name, table_owner, status, estimated_rows, inserts, updates, deletes, create_table_ts, modify_table_ts, table_size, num_of_columns, table_layer, location_path, tablespace_name, table_type, table_format, is_encrypted, is_compressed, table_type_owner, lineage_uuid, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+select a.dataplace_id, a.schema_id,a.dataplace_component_type_id,  a.schema_name, a.table_id, a.table_name, a.table_owner, a.status, a.estimated_rows, a.inserts, a.updates, a.deletes, a.create_table_ts, a.modify_table_ts, a.table_size, a.num_of_columns, a.table_layer, a.location_path, a.tablespace_name,    a.table_type,  a.table_format, a.is_encrypted, a.is_compressed,  a.table_type_owner,a.lineage_uuid, a.valid_from_ts, a.valid_to_ts,  a.crawl_id, a.prev_crawl_id
+from
+(select dataplace_id,schema_id, dataplace_component_type_id, trim(schema_name) as schema_name , table_id, trim(table_name) as table_name , trim(table_owner) as table_owner , status, estimated_rows, inserts, updates, deletes, create_table_ts, modify_table_ts, table_size, num_of_columns, table_layer, location_path, tablespace_name, table_format, is_encrypted, is_compressed, table_type, table_type_owner,lineage_uuid, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id
+from  nabu.dataplace_table_metadata_physical where 1=1 and valid_to_ts = '9999-12-31'::date and table_layer = 'source' and  dataplace_id in ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$) )  a
+left outer  join
+(select  dataplace_id, schema_id, dataplace_component_type_id, trim(schema_name) as schema_name ,  trim(table_name) as table_name , trim(table_owner) as table_owner , status, estimated_rows, num_of_columns, inserts, updates, deletes, create_table_ts, modify_table_ts, table_size, table_layer, location_path, tablespace_name, table_type, table_format, is_encrypted, is_compressed, table_type_owner, query  from staging.src_table_entity_from_source_with_num_columns_$data.resourceId$)   b
+on  a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+and a.schema_name = b.schema_name
+and a.table_name = b.table_name
+where b.table_name is null and b.dataplace_id  is null
+>>
+
+staging_cdc_temp_src_table_entity_delete_analyze_query1(data) ::= <<
+analyze staging.temp_dataplace_table_metadata_delete_$data.resourceId$ ;
+>>
+
+staging_cdc_table_metadata_from_source_insertquery2(data)::=<<
+insert into nabu.dataplace_table_metadata_physical (dataplace_id,schema_id,dataplace_component_type_id,schema_name,table_id,
+table_name,table_owner,status,estimated_rows,inserts,updates,deletes,create_table_ts,modify_table_ts,table_type,
+table_type_owner,table_size,num_of_columns,table_layer,location_path,tablespace_name,table_format,is_encrypted,
+is_compressed,valid_from_ts,valid_to_ts,lineage_uuid,crawl_id,prev_crawl_id)
+     select dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name), case when table_id is null then
+	 nextval('nabu.dataplace_table_metadata_physical_table_id_seq') else table_id end as table_id ,table_name,table_owner,status,estimated_rows,
+     inserts,updates,deletes,create_table_ts,modify_table_ts,table_type,
+   table_type_owner,table_size,num_of_columns,table_layer,location_path,tablespace_name,table_format,is_encrypted,
+   is_compressed,valid_from_ts,valid_to_ts,lineage_uuid,crawl_id,prev_crawl_id
+     from staging.temp_dataplace_table_metadata_update_$data.resourceId$ where source='N';
+
+>>
+
+staging_cdc_table_metadata_from_source_updatequery1(data)::=<<
+update nabu.dataplace_table_metadata_physical a
+set valid_to_ts=b.valid_to_ts
+from staging.temp_dataplace_table_metadata_update_$data.resourceId$ b
+where a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.valid_from_ts=b.valid_from_ts
+and a.schema_name= b.schema_name
+and a.table_id=b.table_id
+and b.source='O'
+>>
+
+staging_cdc_table_metadata_from_source_deletequery1_update(data) ::= <<
+update nabu.dataplace_table_metadata_physical a
+set valid_to_ts = current_timestamp
+from staging.temp_dataplace_table_metadata_delete_$data.resourceId$ b
+where a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_id=b.table_id
+>>
+
+staging_cdc_table_metadata_from_source_analyse_query2(data)::=<<
+analyze nabu.dataplace_table_metadata_physical;
+>>
+
+column_metadata_from_source_for_ddl_change_delete(data) ::= <<
+delete from staging.column_metadata_from_dataplace_for_ddl_change_$data.resourceId$
+>>
+
+column_metadata_from_source_for_ddl_change_insert(data) ::= <<
+insert into staging.column_metadata_from_dataplace_for_ddl_change_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_owner, table_name, column_name, column_comment, data_type, column_format, data_length, data_precision, data_scale, is_nullable, ordinal_position, num_of_distinct, low_value, high_value, num_of_nulls, avg_col_length, cardinality)
+select a.*  from ( select  dataplace_id, schema_id ,dataplace_component_type_id,  trim(schema_name) as schema_name , trim(table_owner) as table_owner , trim(table_name) as table_name , column_name,column_comment, data_type,column_format, data_length, data_precision, data_scale, is_nullable, ordinal_position, num_of_distinct, low_value, high_value, num_of_nulls, avg_col_length, cardinality from staging.column_metadata_from_dataplace_$data.resourceId$ ) a
+inner join
+ (select   dataplace_id,schema_id, dataplace_component_type_id,  trim(schema_name) as schema_name ,   trim(table_name) as table_name , trim(table_owner) as table_owner   from staging.temp_dataplace_table_metadata_update_$data.resourceId$
+where  source = 'N'  ) b on
+a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name = b.schema_name
+and a.table_name = b.table_name
+>>
+
+column_metadata_from_source_for_ddl_change_analyze(data) ::= <<
+analyze staging.column_metadata_from_dataplace_for_ddl_change_$data.resourceId$
+>>
+
+staging_cdc_delete_table_ddl_change(data) ::= <<
+delete from staging.table_ddl_change_$data.resourceId$
+>>
+
+staging_cdc_capture_table_ddl_change(data) ::= <<
+insert into  staging.table_ddl_change_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_owner, table_name, column_name)
+select a.dataplace_id, a.schema_id,a.dataplace_component_type_id , a.schema_name,a.table_owner, a.table_name, c.column_name from staging.temp_dataplace_table_metadata_update_$data.resourceId$ a
+inner join ( select * from nabu.dataplace_column_metadata_physical where valid_to_ts='9999-12-31'::date and dataplace_id in
+                                      ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                                      in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) b
+on a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name = b.schema_name
+and a.table_name = b.table_name
+left outer join staging.column_metadata_from_dataplace_for_ddl_change_$data.resourceId$ c
+on b.dataplace_id = c.dataplace_id
+and b.dataplace_component_type_id = c.dataplace_component_type_id
+and b.schema_name = c.schema_name
+and b.table_name = c.table_name
+and b.column_name = c.column_name
+where c.column_name is null and b.valid_to_ts = '9999-12-31'  and a.source = 'N'
+union all
+select -99 as  dataplace_id, -99 as  dataplace_component_type_id ,-99 as schema_id, 'Test'  as schema_name,' Test' as table_owner, ' Test' as table_name, 'Test' as column_name
+>>
+
+staging_cdc_analyze_table_ddl_change(data) ::= <<
+analyze staging.table_ddl_change_$data.resourceId$
+>>
+
+staging_cdc_update_columns_data_from_source(data) ::= <<
+update nabu.dataplace_column_metadata_physical a
+set valid_to_ts = current_timestamp
+from staging.table_ddl_change_$data.resourceId$ b
+where a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+and a.schema_name = b.schema_name
+and a.table_name = b.table_name
+>>
+
+staging_cdc_column_metadata_from_source_deletequery1_update(data) ::= <<
+update nabu.dataplace_column_metadata_physical a
+set valid_to_ts=current_timestamp
+from staging.temp_dataplace_table_metadata_delete_$data.resourceId$ b
+where a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+and a.schema_name = b.schema_name
+and a.table_name = b.table_name
+>>
+
+staging_cdc_columns_data_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_dataplace_column_metadata_update_$data.resourceId$;
+>>
+
+staging_cdc_columns_data_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_dataplace_column_metadata_update_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_owner, table_name, table_id, column_id, column_name, column_comment, data_type, column_format, data_length, data_precision, data_scale, is_nullable, ordinal_position, num_of_distinct, low_value, high_value, num_of_nulls, avg_col_length, cardinality, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+
+       select dataplace_id,schema_id,dataplace_component_type_id,schema_name as schema_name,table_owner,table_name,table_id,
+        column_id,column_name,column_comment,data_type,column_format,data_length,data_precision,data_scale,is_nullable,ordinal_position,
+        num_of_distinct,low_value,high_value,num_of_nulls,avg_col_length, cardinality, valid_from_ts, case when source='O' then current_timestamp else
+        valid_to_ts end as valid_to_ts ,crawl_id,prev_crawl_id,source
+        from(
+            select count(*) over (partition by dataplace_id,dataplace_component_type_id,schema_id,schema_name,table_owner,table_name,
+            coalesce(column_name,''),coalesce(data_type,''),coalesce(data_length,-9999),coalesce(data_precision,-9999),
+            coalesce(data_scale,-9999),coalesce(is_nullable,false::boolean),coalesce(ordinal_position,-9999),coalesce(cardinality,-9999)) as cnt,c.*
+            from(
+                select 'O'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,trim(a.schema_name) as schema_name
+                ,a.table_id,trim(a.table_owner) as table_owner, a.table_name,a.column_id,a.column_name,a.column_comment,a.crawl_id,a.prev_crawl_id,
+                a.data_type,a.column_format,a.data_length,a.data_precision,a.data_scale,a.is_nullable,a.ordinal_position,a.num_of_distinct,
+                a.low_value,a.high_value,a.num_of_nulls,a.avg_col_length, a.cardinality, a.valid_from_ts,a.valid_to_ts
+                from(select
+                    dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,table_id,trim(table_owner) as table_owner,
+                    trim(table_name) as table_name ,column_id,column_name,column_comment,crawl_id,prev_crawl_id,
+                    data_type,column_format,data_length,data_precision,data_scale,is_nullable,ordinal_position,
+                    num_of_distinct,low_value,high_value,num_of_nulls,avg_col_length, cardinality, valid_from_ts,
+                    valid_to_ts
+                    from nabu.dataplace_column_metadata_physical where valid_to_ts='9999-12-31'::date and dataplace_id in
+                    ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                    in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) a left outer join
+                    (select rc.dataplace_id,rc.schema_id,rc.dataplace_component_type_id,trim(rc.schema_name) as schema_name,
+                    trim(table_owner) as table_owner, trim(table_name) as table_name,column_name,column_comment,
+                    data_type,column_format,data_length,data_precision,data_scale,is_nullable,ordinal_position,
+                    num_of_distinct,low_value,high_value,num_of_nulls,avg_col_length, cardinality from
+                     staging.column_metadata_from_dataplace_$data.resourceId$ sc inner join  (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name)=trim(rc.schema_name) and sc.dataplace_id=rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id ) b
+                        on a.dataplace_id=b.dataplace_id
+                        and a.dataplace_component_type_id=b.dataplace_component_type_id
+                        and a.schema_name=b.schema_name
+                        and a.table_name=b.table_name
+                        and a.column_name=b.column_name
+
+                union all
+
+                select 'N'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,b.table_id,
+                a.table_owner,a.table_name,b.column_id,a.column_name,a.column_comment,$getCrawlId(first(data.getNewCrawlJobInfo))$ as crawl_id,
+                case when b.crawl_id is null then p.prev_crawl_id else b.crawl_id end as prev_crawl_id,
+                a.data_type,a.column_format,a.data_length,a.data_precision,a.data_scale,a.is_nullable,a.ordinal_position,
+                a.num_of_distinct,a.low_value,a.high_value,a.num_of_nulls,a.avg_col_length,a.cardinality,
+                current_timestamp as valid_from_ts,'9999-12-31'::date valid_to_ts
+                    from(select rc.dataplace_id,rc.schema_id,rc.dataplace_component_type_id,trim(rc.schema_name) as schema_name,
+                        trim(table_owner) as table_owner,trim(table_name) as table_name ,
+                        column_name,column_comment,data_type,column_format,data_length,data_precision,data_scale,is_nullable,
+                        ordinal_position,num_of_distinct,low_value,high_value,num_of_nulls,avg_col_length, cardinality
+                        from staging.column_metadata_from_dataplace_$data.resourceId$  sc inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id =rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id ) a
+                        left outer join (select dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,
+                                        table_id,trim(table_owner) as table_owner, trim(table_name) as table_name ,column_id,column_name,
+                                        column_comment,crawl_id,prev_crawl_id,data_type,column_format,data_length,data_precision,data_scale,is_nullable,ordinal_position,
+                                        num_of_distinct,low_value,high_value,num_of_nulls,avg_col_length, cardinality, valid_from_ts,valid_to_ts
+                                         from nabu.dataplace_column_metadata_physical where valid_to_ts='9999-12-31'::date and dataplace_id in
+                                          ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                                          in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$) ) b
+                                          on a.dataplace_id=b.dataplace_id
+                                          and a.dataplace_component_type_id=b.dataplace_component_type_id
+                                          and a.schema_name=b.schema_name
+                                          and a.table_name=b.table_name
+                                          and a.column_name=b.column_name
+						left outer join (select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+					where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$ and dataplace_id = $data.sourceAttributes.dataplace_id$) p
+					on p.schema_directory_id = a.schema_id
+                    )c
+                    )d
+                    where cnt=1;
+>>
+
+staging_cdc_columns_data_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_dataplace_column_metadata_update_$data.resourceId$
+>>
+
+staging_cdc_columns_data_from_source_insertquery2(data)::=<<
+insert into nabu.dataplace_column_metadata_physical
+(dataplace_id,  schema_id,dataplace_component_type_id, schema_name, table_id, table_name, table_owner,column_id, column_name, column_comment, data_type, data_length, data_precision, data_scale, is_nullable, ordinal_position, num_of_distinct, low_value, high_value, num_of_nulls, avg_col_length, cardinality,column_format, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+
+select a.dataplace_id,a.schema_id,a.dataplace_component_type_id,trim(a.schema_name) as schema_name, c.table_id,
+trim(a.table_name) as table_name,trim(a.table_owner) as table_owner,
+case when column_id is null then
+nextval('nabu.dataplace_column_metadata_physical_column_id_seq') else column_id end  as column_id,a.column_name,a.column_comment,a.data_type,a.data_length,a.data_precision,a.data_scale,a.is_nullable,
+a.ordinal_position,a.num_of_distinct,a.low_value,a.high_value,a.num_of_nulls,a.avg_col_length,a.cardinality,a.column_format,a.valid_from_ts,
+a.valid_to_ts,a.crawl_id,a.prev_crawl_id  from
+ staging.temp_dataplace_column_metadata_update_$data.resourceId$ a
+ inner join
+ (select dataplace_id,schema_id,dataplace_component_type_id,schema_name,table_id,table_name,table_owner from
+ nabu.dataplace_table_metadata_physical
+ where valid_to_ts='9999-12-31'::date and dataplace_id in ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id  in($data.sourceAttributes.dataplace_component_type_id$)and schema_id in ($data.sourceAttributes.schema_id_list$)) c
+ on  a.dataplace_id=c.dataplace_id and a.dataplace_component_type_id=c.dataplace_component_type_id and a.schema_name=c.schema_name
+and a.table_name=c.table_name
+where source='N';
+>>
+
+staging_cdc_columns_data_from_source_updatequery1(data)::=<<
+update nabu.dataplace_column_metadata_physical a
+set valid_to_ts=b.valid_to_ts
+from staging.temp_dataplace_column_metadata_update_$data.resourceId$ b
+where  a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_id=b.table_id
+and a.column_name=b.column_name
+and a.valid_from_ts=b.valid_from_ts
+and b.source='O'
+and a.valid_to_ts = '9999-12-31';
+>>
+
+staging_cdc_columns_data_from_source_analyse_query2(data)::=<<
+analyze nabu.dataplace_column_metadata_physical;
+>>
+
+table_entity_schema_drift_insert(data)::=<<
+insert into nabu.table_schema_drift(dataplace_id,dataplace_component_type_id,schema_id,schema_name,
+table_id,table_name,table_owner,cru_by,cru_ts)
+select a.dataplace_id,a.dataplace_component_type_id,a.schema_id,a.schema_name,a.table_id,a.table_name,a.table_owner,
+'Modak',now()
+from nabu.dataplace_table_metadata_physical a left outer join
+nabu.table_schema_drift b
+on a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_id=b.schema_id
+and a.schema_name=b.schema_name
+and a.table_id=b.table_id
+and a.table_name=b.table_name
+where valid_to_ts='9999-12-31'
+and a.dataplace_id = $data.sourceAttributes.dataplace_id$
+and b.dataplace_id is null
+>>
+
+foundation_schema_drift_insert(data)::=<<
+insert into nabu.foundation_schema_drift(dataplace_id,dataplace_component_type_id,schema_id,schema_name,table_id,
+crt_by,crt_ts,mod_by,mod_ts)
+select a.dataplace_id,a.dataplace_component_type_id,a.schema_id,a.schema_name,a.table_id,'Modak',now(),'Modak',now()
+from  nabu.dataplace_table_metadata_physical a left outer join
+nabu.foundation_schema_drift b
+on a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_id=b.schema_id
+and a.schema_name=b.schema_name
+and a.table_id=b.table_id
+where valid_to_ts='9999-12-31'
+and b.dataplace_id is null
+>>
+
+table_entity_schema_drift_update(data)::=<<
+with tmp as(
+select count(*) as cnt,dataplace_id,schema_directory_id,dataplace_component_type_id from nabu.crawl_xref_physical where
+dataplace_id=$data.sourceAttributes.dataplace_id$ and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+and schema_directory_id in ($data.sourceAttributes.schema_id_list$)
+group by dataplace_id,dataplace_component_type_id,schema_directory_id
+)
+update nabu.table_schema_drift a
+set schema_change_flag='Y',temp_table_insert_flag='Y',updated_date=current_date,cru_ts = current_timestamp
+from nabu.dataplace_column_metadata_physical b
+join tmp t on b.dataplace_id=t.dataplace_id and b.dataplace_component_type_id=t.dataplace_component_type_id
+and b.schema_id=t.schema_directory_id
+where a.table_id=b.table_id
+and b.valid_from_ts=current_timestamp
+and b.valid_to_ts='9999-12-31'
+and b.dataplace_id=t.dataplace_id
+and b.dataplace_component_type_id=t.dataplace_component_type_id
+and b.schema_id=t.schema_directory_id
+and cnt>1
+>>
+
+table_entity_schema_drift_analyze(data)::=<<
+analyze nabu.table_schema_drift;
+>>
+
+table_entity_schema_drift_update_2(data)::=<<
+with tmp as(
+select count(*) as cnt,dataplace_id,schema_directory_id,dataplace_component_type_id from nabu.crawl_xref_physical where
+dataplace_id=$data.sourceAttributes.dataplace_id$ and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+and schema_directory_id in ($data.sourceAttributes.schema_id_list$)
+group by dataplace_id,dataplace_component_type_id,schema_directory_id
+)
+
+update nabu.table_schema_drift a
+set schema_change_flag='N',updated_date=current_date,cru_ts = current_timestamp
+from nabu.dataplace_column_metadata_physical b
+join tmp t on b.dataplace_id=t.dataplace_id and b.dataplace_component_type_id=t.dataplace_component_type_id
+and b.schema_id=t.schema_directory_id
+where a.table_id=b.table_id
+and b.valid_from_ts=current_timestamp
+and b.valid_to_ts='9999-12-31'
+and cnt>1
+>>
+
+table_entity_schema_drift_analyze_2(data)::=<<
+analyze nabu.table_schema_drift;
+>>
+
+dataplace_table_schema_drift_details_update(data)::=<<
+with get_data_movement_latest_ingested_tables_list_of_dataplace as(select object_id, min(flow_task_ts) as flow_task_ts from(select data_movement_id, object_id, flow_task_ts from(select data_movement_id, object_id, flow_task_ts,
+row_number() over(partition by data_movement_id,object_id order by flow_task_ts desc) as rownum
+from nabu.flow_task_status where (status_code_id = 15 or status_code_id = 16 or status_code_id = 30)
+and data_movement_id in (select data_movement_id from nabu.data_movement_details_physical dmdp
+where source_dataplace_id = $data.sourceAttributes.dataplace_id$ and valid_to_ts = '9999-12-31'))a where rownum = 1)b group by object_id)
+
+update nabu.dataplace_table_schema_drift_details x
+set valid_to_ts = now()
+from nabu.dataplace_table_schema_drift_details  a
+left join get_data_movement_latest_ingested_tables_list_of_dataplace b
+on a.table_id = b.object_id
+where x.dataplace_id = a.dataplace_id
+and x.table_id = a.table_id
+and x.valid_to_ts = '9999-12-31'
+and ((a.crt_ts < b.flow_task_ts
+and a.valid_to_ts = '9999-12-31'
+and a.dataplace_id = $data.sourceAttributes.dataplace_id$)
+or (a.dataplace_id = $data.sourceAttributes.dataplace_id$ and b.object_id is null and a.valid_to_ts = '9999-12-31'))
+>>
+
+dataplace_table_schema_drift_details_update2(data)::=<<
+update nabu.dataplace_table_schema_drift_details a
+set crt_ts = now()
+from nabu.table_schema_drift b
+where a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b. dataplace_component_type_id
+and a.schema_id = b.schema_id
+and a.table_id = b.table_id
+and temp_table_insert_flag='Y'
+and b.cru_ts = current_timestamp
+and a.valid_to_ts = '9999-12-31'
+and a.dataplace_id = $data.sourceAttributes.dataplace_id$
+>>
+
+dataplace_table_schema_drift_details_insert(data)::=<<
+insert into nabu.dataplace_table_schema_drift_details(dataplace_id,dataplace_component_type_id,schema_id,
+table_id,crt_ts, valid_from_ts, valid_to_ts)
+select a.dataplace_id,a.dataplace_component_type_id,a.schema_id,a.table_id,
+now(), now(), '9999-12-31'
+from nabu.table_schema_drift a
+left outer join (select dataplace_id, dataplace_component_type_id, schema_id, table_id, valid_to_ts
+from (select dataplace_id, dataplace_component_type_id, schema_id, table_id,
+valid_to_ts, row_number() over(partition by table_id order by crt_ts desc) as rownum
+from nabu.dataplace_table_schema_drift_details
+where dataplace_id = $data.sourceAttributes.dataplace_id$
+)x where rownum = 1) b
+on a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b. dataplace_component_type_id
+and a.schema_id = b.schema_id
+and a.table_id = b.table_id
+where temp_table_insert_flag='Y'
+and a.cru_ts = current_timestamp
+and (b.table_id is null or b.valid_to_ts <> '9999-12-31')
+and a.dataplace_id = $data.sourceAttributes.dataplace_id$
+>>
+
+staging_cdc_index_columns_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_index_column_update_$data.resourceId$;
+>>
+
+staging_cdc_index_columns_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_index_column_update_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, table_id, schema_name, table_owner, table_name, column_name, index_name, ordinal_position, sort_order, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+
+select dataplace_id,schema_id,dataplace_component_type_id,table_id,schema_name,table_owner,table_name,
+column_name,index_name,ordinal_position,sort_order,valid_from_ts,
+case when source='O' then current_timestamp else valid_to_ts end as valid_to_ts,crawl_id,prev_crawl_id,source
+from(
+    select count(*) over(partition by dataplace_id,schema_id,dataplace_component_type_id,schema_name,table_owner,
+    table_name,column_name,coalesce(index_name,''),coalesce(ordinal_position,-9999),coalesce(sort_order,'')) as cnt ,c.*
+    from(
+        select 'O'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,a.table_id,a.column_name,
+        a.index_name,a.crawl_id,a.prev_crawl_id,a.ordinal_position,a.sort_order,a.table_owner,a.table_name,a.valid_from_ts,a.valid_to_ts
+        from (select * from nabu.dataplace_index_column where valid_to_ts='9999-12-31'::date  and dataplace_id in
+                ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$))a
+                left outer join
+				(select rc.dataplace_id,rc.dataplace_component_type_id,rc.schema_name,sc.table_name,sc.column_name,sc.index_name from staging.index_column_from_dataplace_$data.resourceId$ sc inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id=rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id ) b
+                on a.dataplace_id=b.dataplace_id
+                and a.dataplace_component_type_id=b.dataplace_component_type_id
+                and a.schema_name=b.schema_name
+                and a.table_name=b.table_name
+                and a.column_name=b.column_name
+                and a.index_name=b.index_name
+
+        union all
+
+        select 'N'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,b.table_id,a.column_name,
+                a.index_name,$getCrawlId(first(data.getNewCrawlJobInfo))$ as crawl_id,
+                case when b.crawl_id is null then p.prev_crawl_id else b.crawl_id end as prev_crawl_id
+                ,a.ordinal_position,a.sort_order,a.table_owner,a.table_name,current_timestamp as valid_from_ts,'9999-12-31'::date valid_to_ts
+                from (select rc.dataplace_id,rc.schema_id ,sc.dataplace_component_type_id ,trim(sc.schema_name) as schema_name,sc.column_name ,sc.index_name ,sc.ordinal_position,sc.sort_order,
+                                      sc.table_owner,sc.table_name from staging.index_column_from_dataplace_$data.resourceId$  sc inner join
+                                       (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id=rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id) a
+                left outer join(select * from nabu.dataplace_index_column  where valid_to_ts='9999-12-31'::date and
+                dataplace_id in ($data.sourceAttributes.dataplace_id$)
+                and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$))b
+                on a.dataplace_id=b.dataplace_id
+               and a.dataplace_component_type_id=b.dataplace_component_type_id
+               and a.schema_name=b.schema_name
+               and a.table_name=b.table_name
+               and a.column_name=b.column_name
+               and a.index_name=b.index_name
+			   left outer join (select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+					where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$ and dataplace_id = $data.sourceAttributes.dataplace_id$) p
+					on p.schema_directory_id = a.schema_id
+               )c
+           )d
+           where cnt=1;
+>>
+
+staging_cdc_index_columns_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_index_column_update_$data.resourceId$;
+>>
+
+staging_cdc_index_columns_from_source_insertquery2(data)::=<<
+insert into nabu.dataplace_index_column
+(dataplace_id, schema_id,dataplace_component_type_id,  schema_name, table_id, column_name, index_name, ordinal_position, sort_order, table_owner, table_name, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+select a.dataplace_id,a.schema_id,a.dataplace_component_type_id,
+a.schema_name,b.table_id,column_name,index_name,
+ordinal_position,sort_order,a.table_owner,a.table_name,valid_from_ts,valid_to_ts,crawl_id,prev_crawl_id
+from staging.temp_index_column_update_$data.resourceId$ a,(select a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,
+a.table_id,a.table_owner,a.table_name from
+nabu.dataplace_table_metadata_physical a
+where valid_to_ts='9999-12-31'::date and dataplace_id in ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+in ($data.sourceAttributes.dataplace_component_type_id$ )and schema_id in ($data.sourceAttributes.schema_id_list$))b
+where a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_name=b.table_name
+and source='N';
+>>
+
+
+staging_cdc_index_columns_from_source_updatequery1(data)::=<<
+update nabu.dataplace_index_column a
+set valid_to_ts=b.valid_to_ts
+from staging.temp_index_column_update_$data.resourceId$ b
+where a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_name=b.table_name
+and a.table_id=b.table_id
+and a.column_name=b.column_name
+and a.index_name=b.index_name
+and a.valid_from_ts=b.valid_from_ts
+and b.source='O'
+and a.valid_to_ts='9999-12-31';
+>>
+
+staging_cdc_index_columns_from_source_analyse_query2(data)::=<<
+analyze  nabu.dataplace_index_column;
+>>
+
+staging_insert_table_privileges_stage_from_source_delete(data)::=<<
+delete from staging.table_privileges_from_dataplace_stage_$data.resourceId$;
+>>
+
+staging_insert_table_privileges_stage_from_source(data)::=<<
+insert into staging.table_privileges_from_dataplace_stage_$data.resourceId$(dataplace_id, schema_id, dataplace_component_type_id,
+  schema_name,table_name, grantee, grantor,privilege_type,is_grantable)
+   select dataplace_id,schema_id,dataplace_component_type_id ,schema_name, table_name, grantee,grantor,
+   string_agg(privilege_type,',') as privilege_type, is_grantable   from  staging.table_privileges_from_dataplace_$data.resourceId$
+   group by dataplace_id,schema_id,dataplace_component_type_id ,grantor, grantee,schema_name, table_name, is_grantable
+>>
+
+staging_cdc_table_privileges_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_table_privileges_update_$data.resourceId$;
+>>
+
+staging_cdc_table_privileges_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_table_privileges_update_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, table_id, table_name, schema_name, grantee, grantor, privilege_type, is_grantable, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+select dataplace_id,schema_id,dataplace_component_type_id,table_id,table_name,schema_name,grantee,
+grantor,privilege_type,is_grantable,valid_from_ts,case when source='O' then current_timestamp else valid_to_ts end as valid_to_ts,
+crawl_id,prev_crawl_id,source
+from(
+select count(*) over(partition by dataplace_id,schema_id,dataplace_component_type_id,schema_name,table_name,coalesce(grantee,''),
+coalesce(grantor,''),coalesce(privilege_type,''),coalesce(is_grantable,true::boolean))as cnt ,c.*
+from(
+select 'O'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,a.table_id,a.table_name,
+a.grantee,a.grantor,a.privilege_type,a.is_grantable,a.valid_from_ts,a.valid_to_ts,a.crawl_id,a.prev_crawl_id
+from (select * from nabu.dataplace_table_privileges  where valid_to_ts='9999-12-31'::date and dataplace_id in
+                      ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                      in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$) )a
+left outer join (select sc.dataplace_id,sc.dataplace_component_type_id,trim(sc.schema_name) as schema_name,sc.table_name from staging.table_privileges_from_dataplace_stage_$data.resourceId$ sc inner join nabu.dataplace_relational_component_physical rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id=rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id where rc.valid_to_ts ='9999-12-31')b
+on a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_name=b.table_name
+
+union all
+
+select 'N'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,b.table_id,a.table_name,
+a.grantee,a.grantor,a.privilege_type,a.is_grantable,current_timestamp as valid_from_ts,
+'9999-12-31'::date as valid_to_ts,$getCrawlId(first(data.getNewCrawlJobInfo))$ as crawl_id,
+case when b.crawl_id is null then p.prev_crawl_id else b.crawl_id end as prev_crawl_id
+from (select rc.dataplace_id,rc.schema_id,sc.dataplace_component_type_id,trim(sc.schema_name) as schema_name,sc.table_name,sc.grantee,sc.grantor,sc.privilege_type,sc.is_grantable
+      from staging.table_privileges_from_dataplace_stage_$data.resourceId$ sc inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id=rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id ) a
+left outer join (select * from nabu.dataplace_table_privileges where valid_to_ts='9999-12-31'::date and dataplace_id in
+($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+ in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$) )b
+on a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_name=b.table_name
+left outer join (select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+					where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$ and dataplace_id = $data.sourceAttributes.dataplace_id$) p
+					on p.schema_directory_id = a.schema_id
+)c)d
+where cnt=1;
+>>
+
+staging_cdc_table_privileges_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_table_privileges_update_$data.resourceId$;
+>>
+
+staging_cdc_table_privileges_from_source_insertquery2(data)::=<<
+insert into nabu.dataplace_table_privileges
+(dataplace_id,schema_id, dataplace_component_type_id,  schema_name, table_id, table_name, grantee, grantor, privilege_type, is_grantable, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+
+select a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,
+b.table_id,a.table_name,grantee,grantor,privilege_type,is_grantable,valid_from_ts,valid_to_ts,crawl_id,prev_crawl_id
+from staging.temp_table_privileges_update_$data.resourceId$ a,(select schema_name,table_name,table_id,dataplace_id,
+dataplace_component_type_id,schema_id,table_owner from nabu.dataplace_table_metadata_physical where  valid_to_ts='9999-12-31' and dataplace_id in ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) b
+where a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_name=b.table_name
+and source='N';
+>>
+
+staging_cdc_table_privileges_from_source_updatequery1(data)::=<<
+update nabu.dataplace_table_privileges a
+set valid_to_ts=b.valid_to_ts
+from staging.temp_table_privileges_update_$data.resourceId$ b
+where a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.valid_from_ts=b.valid_from_ts
+and a.table_name=b.table_name
+and b.source='O'
+and a.valid_to_ts='9999-12-31';
+>>
+
+staging_cdc_table_privileges_from_source_analyse_query2(data)::=<<
+analyze nabu.dataplace_table_privileges;
+>>
+
+staging_cdc_partition_table_metadata_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_dataplace_partition_table_info_update_$data.resourceId$
+>>
+
+staging_cdc_partition_table_metadata_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_dataplace_partition_table_info_update_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name,partition_type, partition_function_name,
+ num_of_partitions, partition_key_count,status,is_composite, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+    select dataplace_id,schema_id,dataplace_component_type_id,schema_name as schema_name,table_id,
+    table_name,partition_type, partition_function_name, num_of_partitions, partition_key_count,status,is_composite, additional_info,valid_from_ts,
+    case when source='O' then current_timestamp  else valid_to_ts end as valid_to_ts ,crawl_id,prev_crawl_id,source
+    from(
+        select count(*) over (partition by dataplace_id,dataplace_component_type_id,schema_id,schema_name,table_id,
+        coalesce(table_name,''),coalesce(partition_type,''),coalesce(status,''),coalesce(partition_function_name,''),coalesce(num_of_partitions,-9999),coalesce(partition_key_count,-9999),
+		coalesce(is_composite,false::boolean)) as cnt,c.*
+        from(
+            select 'O'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,a.table_id,a.table_name,
+            a.partition_type, a.partition_function_name, a.num_of_partitions, a.partition_key_count,a.status,a.is_composite,
+             a.additional_info, a.valid_from_ts,a.valid_to_ts,a.crawl_id,a.prev_crawl_id
+            from(
+            select
+                dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,table_id,
+                trim(table_name) as table_name ,partition_type, partition_function_name, num_of_partitions, partition_key_count,
+                status,is_composite, additional_info,valid_from_ts,valid_to_ts,crawl_id,prev_crawl_id
+                from nabu.partition_table_info where valid_to_ts='9999-12-31'::date and dataplace_id in
+                ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) a
+                 left outer join
+                (select rc.dataplace_id,rc.schema_id,rc.dataplace_component_type_id,trim(rc.schema_name) as schema_name,
+                 trim(table_name) as table_name ,partition_type, partition_function_name, num_of_partitions, partition_key_count
+                 , status, is_composite, sc.additional_info  from
+                 staging.partition_table_info_from_dataplace_$data.resourceId$ sc inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id=rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id ) b
+                    on a.dataplace_id=b.dataplace_id
+                    and a.dataplace_component_type_id=b.dataplace_component_type_id
+                    and a.schema_name=b.schema_name
+                    and a.table_name=b.table_name
+
+
+            union all
+
+            select 'N'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,b.table_id as table_id,
+            a.table_name,a.partition_type, a.partition_function_name, a.num_of_partitions, a.partition_key_count,a.status,
+            a.is_composite, a.additional_info,
+            current_timestamp as valid_from_ts,'9999-12-31'::date valid_to_ts,($getCrawlId(first(data.getNewCrawlJobInfo))$) as crawl_id,case when b.crawl_id is null then
+            p.prev_crawl_id else b.crawl_id end as prev_crawl_id
+                from
+                (select rc.dataplace_id,rc.schema_id,rc.dataplace_component_type_id,trim(rc.schema_name) as schema_name,
+                    trim(table_name) as table_name ,partition_type, partition_function_name, num_of_partitions, partition_key_count,
+                    status,is_composite, sc.additional_info
+                    from staging.partition_table_info_from_dataplace_$data.resourceId$ sc inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id =rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id ) a
+                    left outer join (select dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,
+                                     trim(table_name) as table_name ,table_id,crawl_id
+                                     from nabu.partition_table_info where valid_to_ts='9999-12-31'::date and dataplace_id in
+                                      ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                                      in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) b
+                                      on a.dataplace_id=b.dataplace_id
+                                      and a.dataplace_component_type_id=b.dataplace_component_type_id
+                                      and a.schema_name=b.schema_name
+                                      and a.table_name=b.table_name
+					left outer join (select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+					where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$ and dataplace_id = $data.sourceAttributes.dataplace_id$) p
+					on p.schema_directory_id = a.schema_id
+                    )c
+                )d
+                where cnt=1;
+>>
+
+staging_cdc_partition_table_metadata_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_dataplace_partition_table_info_update_$data.resourceId$;
+>>
+
+staging_cdc_partition_table_from_source_insertquery2(data)::=<<
+insert into nabu.partition_table_info
+(dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id, table_name,
+partition_type, partition_function_name, num_of_partitions, partition_key_count, status, is_composite, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+
+select a.dataplace_id,a.dataplace_component_type_id,a.schema_id,trim(a.schema_name) as schema_name, c.table_id,trim(a.table_name) as table_name,
+a.partition_type, a.partition_function_name, a.num_of_partitions, a.partition_key_count,a.status
+,a.is_composite, a.additional_info,a.valid_from_ts,
+a.valid_to_ts,a.crawl_id,a.prev_crawl_id  from
+ staging.temp_dataplace_partition_table_info_update_$data.resourceId$ a
+ inner join(select dataplace_id,schema_id,dataplace_component_type_id,schema_name,table_id,table_name from
+ nabu.dataplace_table_metadata_physical
+ where valid_to_ts='9999-12-31'::date and dataplace_id in ($data.sourceAttributes.dataplace_id$) and
+  dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) c
+ on  a.dataplace_id=c.dataplace_id and a.dataplace_component_type_id=c.dataplace_component_type_id and a.schema_id=c.schema_id
+ and a.schema_name=c.schema_name
+and a.table_name=c.table_name
+where source='N';
+>>
+
+
+staging_cdc_partition_table_from_source_updatequery1(data)::=<<
+update nabu.partition_table_info a
+set valid_to_ts=b.valid_to_ts
+from staging.temp_dataplace_partition_table_info_update_$data.resourceId$ b
+where  a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_id=b.table_id
+and a.valid_from_ts=b.valid_from_ts
+and a.crawl_id=b.crawl_id
+and b.source='O'
+and a.valid_to_ts = '9999-12-31';
+>>
+
+staging_cdc_partition_table_from_source_analyse_query2(data)::=<<
+analyze nabu.partition_table_info;
+>>
+
+staging_cdc_partition_info_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_dataplace_partitions_info_update_$data.resourceId$;
+>>
+
+staging_cdc_partition_info_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_dataplace_partitions_info_update_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name,partition_id, partition_name, partition_position,
+ db_partition_position
+, num_of_rows, is_compressed, low_value, high_value, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+    select dataplace_id,schema_id,dataplace_component_type_id,schema_name as schema_name,table_id,
+    table_name,partition_id, partition_name, partition_position, db_partition_position
+               , num_of_rows, is_compressed, low_value, high_value, additional_info,valid_from_ts,
+    case when source='O' then current_timestamp  else valid_to_ts end as valid_to_ts ,crawl_id,prev_crawl_id,source
+    from(
+        select count(*) over (partition by dataplace_id,dataplace_component_type_id,schema_id,schema_name,table_id,
+        coalesce(table_name,''),coalesce(partition_id,-9999),coalesce(partition_name,''),coalesce(partition_position,-9999),coalesce(db_partition_position,-9999),coalesce(num_of_rows,-9999),
+		coalesce(is_compressed,false::boolean),coalesce(low_value,''),coalesce(high_value,'')) as cnt,c.*
+        from(
+            select 'O'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,a.table_id,a.table_name,
+            a.partition_id, a.partition_name, a.partition_position, a.db_partition_position, a.num_of_rows, a.is_compressed,
+                             a.low_value, a.high_value, a.additional_info,a.valid_from_ts,a.valid_to_ts,a.crawl_id,a.prev_crawl_id
+            from(
+            select
+                dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,table_id,
+                trim(table_name) as table_name , partition_id, partition_name, partition_position, db_partition_position, num_of_rows, is_compressed,
+                 low_value, high_value, additional_info,valid_from_ts,
+                valid_to_ts,crawl_id,prev_crawl_id
+                from nabu.partitions_info where valid_to_ts='9999-12-31'::date and dataplace_id in
+                ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) a left outer join
+                (select rc.dataplace_id,rc.schema_id,rc.dataplace_component_type_id,trim(rc.schema_name) as schema_name,
+                 trim(table_name) as table_name ,partition_id, partition_name, partition_position,
+                  db_partition_position, num_of_rows, is_compressed, low_value, high_value, sc.additional_info from
+                 staging.partitions_info_from_dataplace_$data.resourceId$ sc inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id=rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id ) b
+                    on a.dataplace_id=b.dataplace_id
+                    and a.dataplace_component_type_id=b.dataplace_component_type_id
+                    and a.schema_name=b.schema_name
+                    and a.table_name=b.table_name
+                    and a.partition_name=b.partition_name
+
+
+            union all
+
+            select 'N'::char as source,a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,b.table_id as table_id,
+            a.table_name,a.partition_id, a.partition_name, a.partition_position,
+             a.db_partition_position, a.num_of_rows, a.is_compressed, a.low_value, a.high_value, a.additional_info,
+            current_timestamp as valid_from_ts,'9999-12-31'::date valid_to_ts,($getCrawlId(first(data.getNewCrawlJobInfo))$) as crawl_id,case when b.crawl_id is null then
+            p.prev_crawl_id else b.crawl_id end as prev_crawl_id
+                from
+                (select rc.dataplace_id,rc.schema_id,rc.dataplace_component_type_id,trim(rc.schema_name) as schema_name,
+                    trim(table_name) as table_name ,partition_id, partition_name, partition_position,
+                     db_partition_position, num_of_rows, is_compressed, low_value, high_value, sc.additional_info
+                    from staging.partitions_info_from_dataplace_$data.resourceId$ sc inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id =rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id) a
+                    left outer join (select dataplace_id,schema_id,dataplace_component_type_id,trim(schema_name) as schema_name,
+                                     trim(table_name) as table_name ,table_id, partition_name, crawl_id
+                                     from nabu.partitions_info where valid_to_ts='9999-12-31'::date and dataplace_id in
+                                      ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                                      in($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) b
+                                      on a.dataplace_id=b.dataplace_id
+                                      and a.dataplace_component_type_id=b.dataplace_component_type_id
+                                      and a.schema_name=b.schema_name
+                                      and a.table_name=b.table_name
+                                      and a.partition_name=b.partition_name
+					left outer join (select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+					where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$ and dataplace_id = $data.sourceAttributes.dataplace_id$) p
+					on p.schema_directory_id = a.schema_id
+                    )c
+                )d
+                where cnt=1 ;
+>>
+
+staging_cdc_partitions_info_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_dataplace_partitions_info_update_$data.resourceId$;
+>>
+
+
+staging_cdc_partitions_info_from_source_insertquery2(data)::=<<
+insert into nabu.partitions_info
+(dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id, table_name, partition_id, partition_name, partition_position,
+db_partition_position, num_of_rows, is_compressed, low_value, high_value, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+
+select a.dataplace_id,a.dataplace_component_type_id,a.schema_id,trim(a.schema_name) as schema_name, c.table_id,trim(a.table_name) as table_name,
+a.partition_id, a.partition_name, a.partition_position, a.db_partition_position
+, a.num_of_rows, a.is_compressed, a.low_value, a.high_value, a.additional_info,a.valid_from_ts,
+a.valid_to_ts,a.crawl_id,a.prev_crawl_id  from
+ staging.temp_dataplace_partitions_info_update_$data.resourceId$ a
+ inner join(select dataplace_id,schema_id,dataplace_component_type_id,schema_name,table_id,table_name from
+ nabu.dataplace_table_metadata_physical
+ where valid_to_ts='9999-12-31'::date and dataplace_id in
+        ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+    in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)) c
+ on  a.dataplace_id=c.dataplace_id and a.dataplace_component_type_id=c.dataplace_component_type_id and a.schema_id=c.schema_id and a.schema_name=c.schema_name
+and a.table_name=c.table_name
+where source='N';
+>>
+
+
+staging_cdc_partitions_info_from_source_updatequery1(data)::=<<
+update nabu.partitions_info a
+set valid_to_ts=b.valid_to_ts
+from staging.temp_dataplace_partitions_info_update_$data.resourceId$ b
+where  a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_id=b.table_id
+and a.partition_name=b.partition_name
+and a.valid_from_ts=b.valid_from_ts
+and a.crawl_id=b.crawl_id
+and b.source='O'
+and a.valid_to_ts = '9999-12-31';
+>>
+
+staging_cdc_partitions_info_from_source_analyse_query2(data)::=<<
+analyze nabu.partitions_info;
+>>
+
+staging_cdc_partition_columns_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_partition_column_update_$data.resourceId$;
+>>
+
+staging_cdc_partition_columns_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_partition_column_update_$data.resourceId$
+(dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id, table_name, column_id, column_name,
+ ordinal_position, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+select dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id, table_name, column_id, column_name,
+        ordinal_position, additional_info, valid_from_ts,
+case when source='O' then current_timestamp else valid_to_ts end as valid_to_ts,crawl_id,prev_crawl_id, source
+from(
+    select count(*) over(partition by dataplace_id,schema_id,dataplace_component_type_id,schema_name,
+    table_id, table_name, column_id, column_name, coalesce(ordinal_position,-9999)) as cnt ,c.*
+    from(
+        select 'O'::char as source,a.dataplace_id,a.dataplace_component_type_id,a.schema_id,a.schema_name,a.table_id,
+        a.table_name,a.column_id,a.column_name,a.ordinal_position,a.additional_info,a.valid_from_ts,a.valid_to_ts,
+         a.crawl_id,a.prev_crawl_id
+        from (
+            select * from nabu.partition_column_info
+            where valid_to_ts='9999-12-31'::date
+            and dataplace_id in ($data.sourceAttributes.dataplace_id$)
+            and dataplace_component_type_id in($data.sourceAttributes.dataplace_component_type_id$)
+            and schema_id in ($data.sourceAttributes.schema_id_list$)
+        )a
+        left outer join (select rc.dataplace_id,rc.schema_id,rc.dataplace_component_type_id,trim(rc.schema_name) as schema_name,
+        table_name,column_name,ordinal_position,sc.additional_info from staging.partition_column_info_from_dataplace_$data.resourceId$  sc inner join  (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id=rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id)b
+        on a.dataplace_id=b.dataplace_id
+        and a.dataplace_component_type_id=b.dataplace_component_type_id
+        and a.schema_name=b.schema_name
+        and a.table_name=b.table_name
+        and a.column_name=b.column_name
+        union all
+        select 'N'::char as source,a.dataplace_id,a.dataplace_component_type_id,a.schema_id,a.schema_name,b.table_id,
+        a.table_name,b.column_id,a.column_name,a.ordinal_position,a.additional_info, current_timestamp as valid_from_ts,
+        '9999-12-31'::date valid_to_ts, $getCrawlId(first(data.getNewCrawlJobInfo))$ as crawl_id,
+        case when b.crawl_id is null then p.prev_crawl_id else b.crawl_id end as prev_crawl_id
+        from
+        (select rc.dataplace_id,rc.schema_id,rc.dataplace_component_type_id,trim(rc.schema_name) as schema_name,
+        table_name,column_name,ordinal_position,sc.additional_info from
+        staging.partition_column_info_from_dataplace_$data.resourceId$ sc inner join (select * from nabu.dataplace_relational_component_physical rc where  rc.dataplace_id=$data.sourceAttributes.dataplace_id$ and rc.dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$ and rc.valid_to_ts='9999-12-31') rc on trim(sc.schema_name) = trim(rc.schema_name) and sc.dataplace_id =rc.dataplace_id and sc.dataplace_component_type_id=rc.dataplace_component_type_id ) a
+        left outer join(
+            select * from nabu.partition_column_info
+            where valid_to_ts='9999-12-31'::date
+            and dataplace_id in ($data.sourceAttributes.dataplace_id$)
+            and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+            and schema_id in ($data.sourceAttributes.schema_id_list$)
+        )b
+        on a.dataplace_id=b.dataplace_id
+        and a.dataplace_component_type_id=b.dataplace_component_type_id
+        and a.schema_name=b.schema_name
+        and a.table_name=b.table_name
+        and a.column_name=b.column_name
+		left outer join (select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+					where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$ and dataplace_id = $data.sourceAttributes.dataplace_id$) p
+					on p.schema_directory_id = a.schema_id
+    )c
+)d
+where cnt=1;
+>>
+
+staging_cdc_partition_columns_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_partition_column_update_$data.resourceId$;
+>>
+
+staging_cdc_partition_columns_from_source_insertquery2(data)::=<<
+insert into nabu.partition_column_info
+(dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id, table_name, column_id, column_name,
+ordinal_position, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+select a.dataplace_id,a.dataplace_component_type_id,a.schema_id,a.schema_name,b.table_id,a.table_name,b.column_id,a.column_name,
+ordinal_position,a.additional_info,valid_from_ts,valid_to_ts,crawl_id,prev_crawl_id
+from staging.temp_partition_column_update_$data.resourceId$ a inner join
+(   select a.dataplace_id,a.schema_id,a.dataplace_component_type_id,a.schema_name,a.table_id,a.table_name,a.column_name,a.column_id
+    from nabu.dataplace_column_metadata_physical a
+    where valid_to_ts='9999-12-31'::date and
+    dataplace_id in
+                    ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id
+                    in ($data.sourceAttributes.dataplace_component_type_id$) and schema_id in ($data.sourceAttributes.schema_id_list$)
+) b
+on a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_name=b.table_name
+and a.column_name =b.column_name
+and source='N';
+>>
+
+staging_cdc_partition_columns_from_source_updatequery1(data)::=<<
+update nabu.partition_column_info a
+set valid_to_ts=b.valid_to_ts
+from staging.temp_partition_column_update_$data.resourceId$ b
+where a.dataplace_id=b.dataplace_id
+and a.dataplace_component_type_id=b.dataplace_component_type_id
+and a.schema_name=b.schema_name
+and a.table_id=b.table_id
+and a.column_name=b.column_name
+and a.valid_from_ts=b.valid_from_ts
+and a.crawl_id=b.crawl_id
+and b.source='O'
+and a.valid_to_ts='9999-12-31';
+>>
+
+staging_cdc_partition_columns_from_source_analyse_query2(data)::=<<
+analyze nabu.partition_column_info;
+>>
+
+
+staging_cdc_sub_partitions_metadata_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_sub_partitions_update_$data.resourceId$
+>>
+
+staging_cdc_sub_partitions_metadata_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_sub_partitions_update_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name, partition_name, sub_partition_name,
+sub_partition_position, high_value, num_of_rows, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+
+select dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name, partition_name, sub_partition_name,
+sub_partition_position, high_value, num_of_rows, additional_info, valid_from_ts,
+case when source = 'O' then current_timestamp  else valid_to_ts end as valid_to_ts ,crawl_id, prev_crawl_id, source
+from(
+    select count(*) over (partition by dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id,
+    coalesce(table_name,''), coalesce(partition_name,''), coalesce(sub_partition_name,''), coalesce(sub_partition_position,-9999),
+    coalesce(high_value,''), coalesce(num_of_rows,-9999)) as cnt, c.*
+    from(
+        select 'O'::char as source, a.dataplace_id, a.schema_id, a.dataplace_component_type_id, a.schema_name, a.table_id, a.table_name,
+        a.partition_name, a.sub_partition_name, a.sub_partition_position, a.high_value ,a.num_of_rows, a.additional_info, a.valid_from_ts,
+        a.valid_to_ts, a.crawl_id, a.prev_crawl_id
+        from(
+            select dataplace_id, schema_id, dataplace_component_type_id, trim(schema_name) as schema_name, table_id,
+            trim(table_name) as table_name, partition_name, sub_partition_name, sub_partition_position, high_value,
+            num_of_rows, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id
+            from
+                nabu.sub_partitions_info
+                where valid_to_ts = '9999-12-31'::date
+                and dataplace_id in ($data.sourceAttributes.dataplace_id$)
+                and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+                and schema_id in ($data.sourceAttributes.schema_id_list$)
+        ) a
+        left outer join
+        (
+            select rc.dataplace_id, rc.schema_id, rc.dataplace_component_type_id, trim(rc.schema_name) as schema_name,
+            trim(table_name) as table_name, partition_name, sub_partition_name, sub_partition_position, high_value,
+            num_of_rows, sc.additional_info
+            from
+                staging.sub_partitions_info_from_dataplace_$data.resourceId$ sc
+                inner join
+                (
+                    select * from nabu.dataplace_relational_component_physical rc
+                     where rc.dataplace_id = $data.sourceAttributes.dataplace_id$
+                     and rc.dataplace_component_type_id = $data.sourceAttributes.dataplace_component_type_id$
+                     and rc.valid_to_ts = '9999-12-31'
+                ) rc
+                on trim(sc.schema_name) = trim(rc.schema_name)
+                and sc.dataplace_id = rc.dataplace_id
+                and sc.dataplace_component_type_id = rc.dataplace_component_type_id
+        ) b
+        on a.dataplace_id = b.dataplace_id
+        and a.dataplace_component_type_id = b.dataplace_component_type_id
+        and a.schema_name = b.schema_name
+        and a.table_name = b.table_name
+        and a.partition_name = b.partition_name
+        and a.sub_partition_name = b.sub_partition_name
+
+
+        union all
+
+        select 'N'::char as source, a.dataplace_id, a.schema_id, a.dataplace_component_type_id, a.schema_name, b.table_id as table_id,
+        a.table_name, a.partition_name, a.sub_partition_name, a.sub_partition_position, a.high_value, a.num_of_rows, a.additional_info,
+        current_timestamp as valid_from_ts, '9999-12-31'::date valid_to_ts, ($getCrawlId(first(data.getNewCrawlJobInfo))$) as crawl_id,
+        case when b.crawl_id is null then p.prev_crawl_id else b.crawl_id end as prev_crawl_id
+        from(
+            select rc.dataplace_id, rc.schema_id, rc.dataplace_component_type_id, trim(rc.schema_name) as schema_name,
+            trim(table_name) as table_name, partition_name, sub_partition_name, sub_partition_position, high_value,
+            num_of_rows, sc.additional_info
+            from
+                staging.sub_partitions_info_from_dataplace_$data.resourceId$ sc
+                inner join
+                (
+                select * from nabu.dataplace_relational_component_physical rc
+                where rc.dataplace_id = $data.sourceAttributes.dataplace_id$
+                and rc.dataplace_component_type_id = $data.sourceAttributes.dataplace_component_type_id$
+                and rc.valid_to_ts = '9999-12-31'
+                ) rc
+                on trim(sc.schema_name) = trim(rc.schema_name)
+                and sc.dataplace_id = rc.dataplace_id
+                and sc.dataplace_component_type_id = rc.dataplace_component_type_id
+        ) a
+        left outer join
+        (
+            select dataplace_id, schema_id, dataplace_component_type_id, trim(schema_name) as schema_name,
+            trim(table_name) as table_name, table_id, partition_name, sub_partition_name, crawl_id
+            from
+                nabu.sub_partitions_info
+                where valid_to_ts = '9999-12-31'::date
+                and dataplace_id in ($data.sourceAttributes.dataplace_id$)
+                and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+                and schema_id in ($data.sourceAttributes.schema_id_list$)
+        ) b
+        on a.dataplace_id = b.dataplace_id
+        and a.dataplace_component_type_id = b.dataplace_component_type_id
+        and a.schema_name = b.schema_name
+        and a.table_name = b.table_name
+        and a.partition_name = b.partition_name
+        and a.sub_partition_name = b.sub_partition_name
+        left outer join
+        (
+            select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+            where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$
+            and dataplace_id = $data.sourceAttributes.dataplace_id$
+        ) p
+        on p.schema_directory_id = a.schema_id
+    )c
+)d
+where cnt=1;
+>>
+
+staging_cdc_sub_partitions_metadata_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_sub_partitions_update_$data.resourceId$;
+>>
+
+staging_cdc_sub_partitions_from_source_insertquery2(data)::=<<
+insert into nabu.sub_partitions_info
+(dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id, table_name, partition_name, sub_partition_name,
+sub_partition_position, high_value, num_of_rows, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+
+select a.dataplace_id, a.dataplace_component_type_id, a.schema_id, trim(a.schema_name) as schema_name, c.table_id, trim(a.table_name) as table_name,
+a.partition_name, a.sub_partition_name, a.sub_partition_position, a.high_value, a.num_of_rows, a.additional_info, a.valid_from_ts,
+a.valid_to_ts, a.crawl_id, a.prev_crawl_id
+from
+staging.temp_sub_partitions_update_$data.resourceId$ a
+inner join
+(
+    select dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name
+    from nabu.dataplace_table_metadata_physical
+    where valid_to_ts = '9999-12-31'::date
+    and dataplace_id in ($data.sourceAttributes.dataplace_id$)
+    and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+    and schema_id in ($data.sourceAttributes.schema_id_list$)
+) c
+on a.dataplace_id = c.dataplace_id
+and a.dataplace_component_type_id = c.dataplace_component_type_id
+and a.schema_id = c.schema_id
+and a.schema_name = c.schema_name
+and a.table_name = c.table_name
+where source = 'N';
+>>
+
+
+staging_cdc_sub_partitions_from_source_updatequery1(data)::=<<
+update nabu.sub_partitions_info a
+set valid_to_ts = b.valid_to_ts
+from staging.temp_sub_partitions_update_$data.resourceId$ b
+where a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+and a.schema_name = b.schema_name
+and a.table_id = b.table_id
+and a.partition_name = b.partition_name
+and a.sub_partition_name = b.sub_partition_name
+and a.valid_from_ts = b.valid_from_ts
+and a.crawl_id = b.crawl_id
+and b.source = 'O'
+and a.valid_to_ts = '9999-12-31';
+>>
+
+staging_cdc_sub_partitions_from_source_analyse_query2(data)::=<<
+analyze nabu.sub_partitions_info;
+>>
+
+
+staging_cdc_sub_partition_columns_metadata_from_source_update_deletequery1(data)::=<<
+delete from staging.temp_sub_partition_columns_update_$data.resourceId$
+>>
+
+staging_cdc_sub_partition_columns_metadata_from_source_update_insertquery1(data)::=<<
+insert into staging.temp_sub_partition_columns_update_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name, partition_name, sub_partition_name,
+sub_partitioned_column_name, sub_partition_column_position, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+
+select dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name, partition_name, sub_partition_name,
+sub_partitioned_column_name, sub_partition_column_position, additional_info, valid_from_ts,
+case when source = 'O' then current_timestamp else valid_to_ts end as valid_to_ts, crawl_id, prev_crawl_id, source
+from(
+    select count(*) over (partition by dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id,
+    coalesce(table_name,''), coalesce(partition_name,''), coalesce(sub_partition_name,''), coalesce(sub_partitioned_column_name,''),
+    coalesce(sub_partition_column_position,-9999)) as cnt, c.*
+    from(
+        select 'O'::char as source, a.dataplace_id, a.schema_id, a.dataplace_component_type_id, a.schema_name, a.table_id, a.table_name,
+        a.partition_name, a.sub_partition_name, a.sub_partitioned_column_name, a.sub_partition_column_position, a.additional_info,
+        a.valid_from_ts, a.valid_to_ts, a.crawl_id, a.prev_crawl_id
+        from(
+            select dataplace_id, schema_id, dataplace_component_type_id, trim(schema_name) as schema_name, table_id,
+            trim(table_name) as table_name, partition_name, sub_partition_name, sub_partitioned_column_name, sub_partition_column_position,
+            additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id
+            from
+                nabu.sub_partition_columns_info
+                where valid_to_ts = '9999-12-31'::date
+                and dataplace_id in ($data.sourceAttributes.dataplace_id$)
+                and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+                and schema_id in ($data.sourceAttributes.schema_id_list$)
+        ) a
+        left outer join
+        (
+            select rc.dataplace_id, rc.schema_id, rc.dataplace_component_type_id, trim(rc.schema_name) as schema_name,
+            trim(table_name) as table_name, partition_name, sub_partition_name, sub_partitioned_column_name,
+            sub_partition_column_position, sc.additional_info
+            from
+                staging.sub_partition_columns_info_from_dataplace_$data.resourceId$ sc
+                inner join
+                (
+                     select * from nabu.dataplace_relational_component_physical rc
+                     where rc.dataplace_id = $data.sourceAttributes.dataplace_id$
+                     and rc.dataplace_component_type_id = $data.sourceAttributes.dataplace_component_type_id$
+                     and rc.valid_to_ts = '9999-12-31'
+                ) rc
+                on trim(sc.schema_name) = trim(rc.schema_name)
+                and sc.dataplace_id = rc.dataplace_id
+                and sc.dataplace_component_type_id = rc.dataplace_component_type_id
+        ) b
+        on a.dataplace_id = b.dataplace_id
+        and a.dataplace_component_type_id = b.dataplace_component_type_id
+        and a.schema_name = b.schema_name
+        and a.table_name = b.table_name
+        and a.partition_name = b.partition_name
+        and a.sub_partition_name = b.sub_partition_name
+        and a.sub_partitioned_column_name = b.sub_partitioned_column_name
+
+
+        union all
+
+        select 'N'::char as source, a.dataplace_id, a.schema_id, a.dataplace_component_type_id, a.schema_name, b.table_id as table_id,
+        a.table_name, a.partition_name, a.sub_partition_name, a.sub_partitioned_column_name, a.sub_partition_column_position,
+        a.additional_info, current_timestamp as valid_from_ts, '9999-12-31'::date valid_to_ts,
+        ($getCrawlId(first(data.getNewCrawlJobInfo))$) as crawl_id,
+        case when b.crawl_id is null then p.prev_crawl_id else b.crawl_id end as prev_crawl_id
+        from(
+            select rc.dataplace_id, rc.schema_id, rc.dataplace_component_type_id, trim(rc.schema_name) as schema_name,
+            trim(table_name) as table_name, partition_name, sub_partition_name, sub_partitioned_column_name,
+            sub_partition_column_position, sc.additional_info
+            from
+                staging.sub_partition_columns_info_from_dataplace_$data.resourceId$ sc
+                inner join
+                (
+                    select * from nabu.dataplace_relational_component_physical rc
+                    where rc.dataplace_id = $data.sourceAttributes.dataplace_id$
+                    and rc.dataplace_component_type_id = $data.sourceAttributes.dataplace_component_type_id$
+                    and rc.valid_to_ts = '9999-12-31'
+                ) rc
+                on trim(sc.schema_name) = trim(rc.schema_name)
+                and sc.dataplace_id = rc.dataplace_id
+                and sc.dataplace_component_type_id = rc.dataplace_component_type_id
+            ) a
+            left outer join
+            (
+            select dataplace_id, schema_id, dataplace_component_type_id, trim(schema_name) as schema_name,
+            trim(table_name) as table_name, table_id, partition_name, sub_partition_name, sub_partitioned_column_name, crawl_id
+            from
+                nabu.sub_partition_columns_info
+                where valid_to_ts = '9999-12-31'::date
+                and dataplace_id in ($data.sourceAttributes.dataplace_id$)
+                and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+                and schema_id in ($data.sourceAttributes.schema_id_list$)
+            ) b
+            on a.dataplace_id = b.dataplace_id
+            and a.dataplace_component_type_id = b.dataplace_component_type_id
+            and a.schema_name = b.schema_name
+            and a.table_name = b.table_name
+            and a.partition_name = b.partition_name
+            and a.sub_partition_name = b.sub_partition_name
+            and a.sub_partitioned_column_name = b.sub_partitioned_column_name
+            left outer join
+            (
+            select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+            where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$
+            and dataplace_id = $data.sourceAttributes.dataplace_id$
+            ) p
+            on p.schema_directory_id = a.schema_id
+    )c
+)d
+where cnt=1;
+>>
+
+staging_cdc_sub_partition_columns_metadata_from_source_update_analyse_query1(data)::=<<
+analyze staging.temp_sub_partition_columns_update_$data.resourceId$;
+>>
+
+staging_cdc_sub_partition_columns_from_source_insertquery2(data)::=<<
+insert into nabu.sub_partition_columns_info
+(dataplace_id, dataplace_component_type_id, schema_id, schema_name, table_id, table_name, partition_name, sub_partition_name,
+sub_partitioned_column_name, sub_partition_column_position, additional_info, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+
+select a.dataplace_id, a.dataplace_component_type_id, a.schema_id, trim(a.schema_name) as schema_name, c.table_id,
+trim(a.table_name) as table_name, a.partition_name, a.sub_partition_name, a.sub_partitioned_column_name, a.sub_partition_column_position,
+a.additional_info, a.valid_from_ts, a.valid_to_ts, a.crawl_id, a.prev_crawl_id
+from
+staging.temp_sub_partition_columns_update_$data.resourceId$ a
+inner join
+(
+    select dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_id, table_name
+    from nabu.dataplace_table_metadata_physical
+    where valid_to_ts = '9999-12-31'::date
+    and dataplace_id in ($data.sourceAttributes.dataplace_id$)
+    and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)
+    and schema_id in ($data.sourceAttributes.schema_id_list$)
+) c
+on a.dataplace_id = c.dataplace_id
+and a.dataplace_component_type_id = c.dataplace_component_type_id
+and a.schema_id = c.schema_id
+and a.schema_name = c.schema_name
+and a.table_name = c.table_name
+where source = 'N';
+>>
+
+
+staging_cdc_sub_partition_columns_from_source_updatequery1(data)::=<<
+update nabu.sub_partition_columns_info a
+set valid_to_ts = b.valid_to_ts
+from staging.temp_sub_partition_columns_update_$data.resourceId$ b
+where a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+and a.schema_name = b.schema_name
+and a.table_id = b.table_id
+and a.partition_name = b.partition_name
+and a.sub_partition_name = b.sub_partition_name
+and a.sub_partitioned_column_name = b.sub_partitioned_column_name
+and a.valid_from_ts = b.valid_from_ts
+and a.crawl_id = b.crawl_id
+and b.source = 'O'
+and a.valid_to_ts = '9999-12-31';
+>>
+
+staging_cdc_sub_partition_columns_from_source_analyse_query2(data)::=<<
+analyze nabu.sub_partition_columns_info;
+>>
+
+
+insertIntoOracleDbaColumnConstraints(data)::=<<
+delete from nabu.oracle_dba_column_constraints;
+insert into nabu.oracle_dba_column_constraints
+select *,'Modak',now(),'Modak',now() from staging.oracle_dba_column_constraints_$data.resourceId$;
+>>
+
+insertIntoDbaPoliciesFromSource(data)::=<<
+delete from nabu.oracle_dba_policies;
+insert into nabu.oracle_dba_policies
+select *,'Modak',now(),'Modak',now() from staging.oracle_dba_policies_from_dataplace_$data.resourceId$;
+>>
+
+insertIntoDbaSessionsPerUser(data)::=<<
+delete from nabu.sessions_per_user;
+insert into nabu.sessions_per_user
+select *,'Modak',now(),'Modak',now() from staging.sessions_per_user_from_dataplace_$data.resourceId$;
+>>
+
+staging_cdc_table_metadata_from_source_estimated_rows_updatequery2(data) ::= <<
+insert into staging.src_table_entity_from_source_estimated_rows_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, table_id, table_name, estimated_rows, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+
+select tm.dataplace_id,rc.schema_id,tm.dataplace_component_type_id,tm.table_id,tm.table_name,st.estimated_rows,tm.valid_from_ts,tm.valid_to_ts,tm.crawl_id,tm.prev_crawl_id from
+staging.table_metadata_from_dataplace_$data.resourceId$ st inner join nabu.dataplace_relational_component_physical rc on st.schema_name=rc.schema_name and st.dataplace_id =rc.dataplace_id and st.dataplace_component_type_id=rc.dataplace_component_type_id inner join nabu.dataplace_table_metadata_physical tm on st.dataplace_id=tm.dataplace_id
+and st.table_name=tm.table_name
+and st.dataplace_component_type_id=tm.dataplace_component_type_id
+and tm.schema_id=rc.schema_id
+where tm.valid_to_ts='9999-12-31'
+and rc.valid_to_ts ='9999-12-31'
+>>
+
+staging_cdc_table_metadata_from_source_estimated_rows_analyze()::=<<
+analyze staging.src_table_entity_from_source_estimated_rows_$data.resourceId$;
+>>
+
+staging_cdc_table_metadata_from_source_estimated_rows_update_insertquery1(data) ::= <<
+insert into staging.temp_src_table_entity_update_estimated_rows_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, table_id, table_name, estimated_rows, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id, "source")
+
+select dataplace_id, schema_id,dataplace_component_type_id,  table_id, table_name, estimated_rows,  valid_from_ts, case when source = 'O' then current_timestamp  else
+valid_to_ts end as valid_to_ts, crawl_id, prev_crawl_id,source
+from (
+      Select count(*) over (partition by dataplace_id,schema_id,dataplace_component_type_id, table_id, estimated_rows,table_name ) as cnt, c.*
+            from (
+                  select 'O'::char as source, a.dataplace_id,a.schema_id, a.dataplace_component_type_id,  a.table_id, a.table_name, a.estimated_rows,
+                   a.valid_from_ts, a.valid_to_ts,  a.crawl_id, a.prev_crawl_id
+                        from   ( select dataplace_id, schema_id,dataplace_component_type_id, table_id, trim(table_name) as  table_name , estimated_rows,
+                         valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id from nabu.table_metadata_estimated_rows tm where
+                          valid_to_ts = '9999-12-31'::date and dataplace_id  in ($data.sourceAttributes.dataplace_id$)
+                          and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)) a inner join
+                                (  select dataplace_id, schema_id,dataplace_component_type_id, trim(table_name) as  table_name , estimated_rows
+                                 from staging.src_table_entity_from_source_estimated_rows_$data.resourceId$ )   b
+                                            on  a.dataplace_id = b.dataplace_id and a.dataplace_component_type_id = b.dataplace_component_type_id
+                                            and a.schema_id=b.schema_id
+                                            and a.table_name = b.table_name
+
+                   union all
+
+                    Select 'N'::char as source, a.dataplace_id,a.schema_id, a.dataplace_component_type_id,  a.table_id as table_id, a.table_name,
+                     a.estimated_rows, current_timestamp as  valid_from_ts, '9999-12-31'::date valid_to_ts,
+                     $getCrawlId(first(data.getNewCrawlJobInfo))$  as crawl_id, case when b.crawl_id   is null then
+                      p.prev_crawl_id else b.crawl_id end  as prev_crawl_id
+
+                            from ( select dataplace_id,schema_id,dataplace_component_type_id,table_id,  trim(table_name) as  table_name ,
+                             estimated_rows from staging.src_table_entity_from_source_estimated_rows_$data.resourceId$ ) a
+                            left outer join ( select dataplace_id, schema_id,dataplace_component_type_id, trim(table_name) as  table_name,
+                            table_id, crawl_id   from nabu.table_metadata_estimated_rows
+                             where valid_to_ts = '9999-12-31'::date and dataplace_id  in
+                             ($data.sourceAttributes.dataplace_id$) and dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$)) b
+                            ON a.dataplace_id = b.dataplace_id and a.dataplace_component_type_id = b.dataplace_component_type_id
+                            and a.schema_id=b.schema_id
+                            and a.table_name = b.table_name
+					left outer join (select prev_crawl_id, schema_directory_id, dataplace_id from nabu.crawl_xref_physical
+					where crawl_id = $getCrawlId(first(data.getNewCrawlJobInfo))$ and dataplace_id = $data.sourceAttributes.dataplace_id$) p
+					on p.schema_directory_id = a.schema_id
+            ) c
+        ) d
+          where cnt = 1
+>>
+
+staging_cdc_table_metadata_from_source_estimated_rows_update_analyse_query1(data) ::= <<
+analyze  staging.temp_src_table_entity_update_estimated_rows_$data.resourceId$ ;
+>>
+
+staging_cdc_temp_src_table_entity_delete_estimated_rows_deletequery1(data) ::= <<
+delete from staging.temp_src_table_entity_delete_estimated_rows_$data.resourceId$ ;
+>>
+
+staging_cdc_temp_src_table_entity_delete_estimated_rows_insertquery1(data) ::= <<
+insert into staging.temp_src_table_entity_delete_estimated_rows_$data.resourceId$
+(dataplace_id, schema_id, dataplace_component_type_id, table_id, table_name, estimated_rows, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+select a.dataplace_id,a.schema_id, a.dataplace_component_type_id,  a.table_id, a.table_name, a.estimated_rows,  a.valid_from_ts, a.valid_to_ts,  a.crawl_id, a.prev_crawl_id from (select dataplace_id, schema_id,dataplace_component_type_id, table_id, trim(table_name) as table_name , estimated_rows, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id  from  nabu.table_metadata_estimated_rows
+ where dataplace_id  in ($data.sourceAttributes.dataplace_id$)
+and  dataplace_component_type_id in ($data.sourceAttributes.dataplace_component_type_id$))  a
+left outer  join  (  select  dataplace_id,schema_id,
+dataplace_component_type_id, trim(table_name) as table_name , estimated_rows from staging.src_table_entity_from_source_estimated_rows_$data.resourceId$)   b
+on a.dataplace_id = b.dataplace_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+and a.schema_id=b.schema_id
+and a.table_name = b.table_name
+where  b.table_name is null and b.dataplace_id  is null
+and a.valid_to_ts = '9999-12-31'::date
+>>
+
+staging_cdc_temp_src_table_entity_delete_estimated_rows_analyze_query1(data) ::= <<
+analyze staging.temp_src_table_entity_delete_estimated_rows_$data.resourceId$ ;
+>>
+
+staging_cdc_table_metadata_from_source_estimated_rows_insertquery2(data) ::= <<
+insert into nabu.table_metadata_estimated_rows (dataplace_id, schema_id,dataplace_component_type_id, table_id, table_name, estimated_rows, valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id)
+ select   dataplace_id, schema_id,dataplace_component_type_id,table_id, table_name, estimated_rows,valid_from_ts, valid_to_ts, crawl_id, prev_crawl_id from
+ staging.temp_src_table_entity_update_estimated_rows_$data.resourceId$  where source = 'N'
+>>
+
+staging_cdc_table_metadata_from_source_estimated_rows_updatequery1(data) ::= <<
+update nabu.table_metadata_estimated_rows a
+set valid_to_ts= b.valid_to_ts
+from staging.temp_src_table_entity_update_estimated_rows_$data.resourceId$ b
+where a.dataplace_id = b.dataplace_id
+and a.schema_id=b.schema_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+and a.valid_from_ts = b.valid_from_ts
+and a.table_id  = b.table_id
+and b.source = 'O';
+
+>>
+
+staging_cdc_table_metadata_from_source_estimated_rows_deletequery1_update(data) ::= <<
+update nabu.table_metadata_estimated_rows a
+set valid_to_ts = current_timestamp
+from staging.temp_src_table_entity_delete_estimated_rows_$data.resourceId$ b
+where a.dataplace_id = b.dataplace_id
+and a.schema_id=b.schema_id
+and a.dataplace_component_type_id = b.dataplace_component_type_id
+and a.table_id  = b.table_id
+and a.valid_to_ts='9999-12-31'
+>>
+
+staging_cdc_table_metadata_from_source_estimated_rows_analyse_query2(data) ::= <<
+analyze nabu.table_metadata_estimated_rows ;
+>>
+
+updateCrawlJobInfo_Finished(data)::=<<
+update nabu.crawl_xref_physical set crawl_end_ts=current_timestamp where crawl_id=$getCrawlId(first(data.getNewCrawlJobInfo))$
+>>
+
+
+getPreviousCrawlId(map)::=<<
+$if(map.prev_crawl_id)$ '$map.prev_crawl_id$' $else$ null $endif$
+>>
+
+getCrawlId(map)::=<<
+$if(map.crawl_id)$ '$map.crawl_id$' $else$ uuid_in((md5((random())::text))::cstring)$endif$
+>>
+
+
+getPreviousCrawlJobInfo(data)::=<<
+select crawl_id as prev_crawl_id,'$data.sourceAttributes.source_type$' from nabu.crawl_xref_physical where
+ dataplace_id=$data.sourceAttributes.dataplace_id$ and dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$
+ and schema_directory_id=$data.sourceAttributes.batch_id$
+order by crawl_start_ts desc limit 1
+>>
+
+getNewCrawlJobInfo(data)::=<<
+select $data.sourceAttributes.dataplace_id$,uuid_in((md5((random())::text))::cstring) as crawl_id,$getPreviousCrawlId(first(data.getPreviousCrawlJobInfo))$ as prev_crawl_id,'$data.sourceAttributes.source_type$'
+>>

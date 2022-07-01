@@ -1,0 +1,1023 @@
+import "templates/artifact_ingestion/common_templates.stg"
+
+flow_timeout_notification_email_retry_or_not(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+ "bot_name": "DBOpsBot",
+ "bot_metadata": {
+      $common_metadata(message_id,bot_id,parent_metadata.flowControllerMetadata.message_id,parent_metadata.flowTaskMetadata.tags.workflow_route_bot_topic_details.DBOpsBot,parent_metadata.flowTaskMetadata.tags)$,
+      "tags": {$flowdesigner_tags_common(parent_metadata,"DBOpsBot",parent_task_end_ts)$},
+      "task_retry_intervals_secs": $retry_intervals()$,
+      "message_context": "flow_timeout_notification_email$dataAsMap.mail_type$"
+    },
+  "bot_tasks": [
+    {
+      "task_name": "flow_timeout_notification_email$dataAsMap.mail_type$",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "template_name": "Email_notification_for_timeout_retry_or_not"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl": false,
+        "query_input": $templateData$,
+        "is_manual_retry":$dataAsMap.is_success_mail$,
+        "mail_type":"$dataAsMap.mail_type$"
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+          "template_name": "email_with_flow_timeout_msg_retry_or_not"
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+email_timeout_notification_mail_msg_retry(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+ "bot_name": "DBOpsBot",
+ "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "Email_for_flow_timeout_notification_retry"
+  },
+
+  "bot_tasks": [
+    {
+      "task_name": "Email_for_flow_timeout_notification_retry",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_retry_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "template_name": "Email_notification_for_timeout"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl": false,
+        "query_input": $templateData$
+
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+          "template_name": "email_with_flow_timeout_msg"
+
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+email_timeout_notification_mail_msg_retry_manual_retry(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+ "bot_name": "DBOpsBot",
+ "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.DBOpsBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"KoshBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "Email_for_flow_timeout_notification_retry_for_manual_retry"
+  },
+
+  "bot_tasks": [
+    {
+      "task_name": "Email_for_flow_timeout_notification_retry_for_manual_retry",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "doNothing",
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_retry_template"
+      },
+      "app_template_details": {
+        "template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "template_name": "Email_notification_for_timeout_manual_retry"
+      },
+      "input_data": {
+        "template_execution_type": "sequential",
+        "useTransactionControl": false,
+        "query_input": $templateData$
+
+      },
+      "output_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+          "template_name": "email_with_flow_timeout_msg_manual_retry"
+
+        },
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "task_status_success_msg"
+        }
+      ],
+      "error_message_templates": [
+        {
+          "template_group": "templates/artifact_ingestion/common_templates.stg",
+          "template_name": "error_template_create_msg"
+        }
+      ]
+    }
+  ]
+}
+>>
+
+Email_notification_for_timeout_retry_or_not(templateData)::=<<
+{
+  "input_data": $email_query_input(templateData.query_input)$,
+   "sequential_templates":[
+      {
+        "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_configurations",
+        "query_output_key": "get_configurations",
+        "query_type":"select"
+      },
+      {
+              "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+              "query_template_name": "fetch_source_type",
+              "query_output_key": "fetch_source_type",
+              "query_type":"select"
+            },
+      {
+        "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_scheduling_info",
+        "query_output_key": "get_scheduling_info",
+        "query_type":"select"
+      },
+       {
+        "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_batch_id",
+        "query_output_key": "get_batch_id",
+        "query_type":"select"
+      },
+      {
+        "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_failure_email_id",
+        "query_output_key": "get_failure_email_id",
+        "query_type":"select"
+      },
+	  {
+        "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_destination_dataplace_name",
+        "query_output_key": "get_destination_dataplace_name",
+        "query_type":"select"
+	  },
+      {
+        "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_success_object_count$templateData.mail_type$",
+        "query_output_key": "get_success_object_count$templateData.mail_type$",
+        "query_type":"select"
+      },
+      {
+      "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_failed_object_count$templateData.mail_type$",
+        "query_output_key": "get_failed_object_count$templateData.mail_type$",
+        "query_type":"select"
+      },
+	  { "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_counts_of_tables_failure$templateData.mail_type$",
+        "query_output_key": "get_counts_of_tables_failure$templateData.mail_type$",
+        "query_type":"select"
+	  },
+      { "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_source_type",
+        "query_output_key": "get_source_type",
+        "query_type":"select"
+	  },
+	  {"query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_time_elapsed$templateData.mail_type$",
+        "query_output_key": "get_time_elapsed$templateData.mail_type$",
+        "query_type":"select"
+	  },
+	  { "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "list_of_failed_tables_failure$templateData.mail_type$",
+        "query_output_key": "list_of_failed_tables_failure$templateData.mail_type$",
+        "query_type":"select"
+	  },
+      { "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_tags_info",
+        "query_output_key": "get_tags_info",
+        "query_type":"select"
+	  },
+      { "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_url_info",
+        "query_output_key": "get_url_info",
+        "query_type":"select"
+	  },
+      { "query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_tags_count",
+        "query_output_key": "get_tags_count",
+        "query_type":"select"
+	  },
+      {
+       	"query_template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "query_template_name": "get_mail_type",
+        "query_output_key": "get_mail_type",
+        "query_type":"select"
+      }
+    ],
+  "output_keys":["get_mail_type","get_configurations","get_scheduling_info","get_batch_id","get_failure_email_id","get_destination_dataplace_name","get_success_object_count$templateData.mail_type$","get_failed_object_count$templateData.mail_type$","list_of_failed_tables_failure_manual_retry","get_time_elapsed_manual_retry","get_counts_of_tables_failure$templateData.mail_type$","get_source_type","get_tags_info","get_url_info","get_tags_count"]
+}
+
+>>
+
+get_mail_type(templateData)::=<<
+select '$templateData.input_data.mail_type$' as mail_type, $templateData.input_data.is_manual_retry$ as is_manual_retry
+>>
+
+get_configurations(templateData)::=<<
+select (config_json->\>'from_address') as from_address from nabu.config where config_name ='email_configurations'
+>>
+
+fetch_source_type(templateData)::=<<
+with CTE1 as (
+select distinct dm.data_movement_id,dcml.metadata_category as source_type, dscl.dataplace_sub_component_type as source from nabu.data_movement_details_physical dm inner join nabu.dataplace_physical dp on dp.dataplace_id=dm.source_dataplace_id
+inner join  nabu.dataplace_component_mapping_lookup dcml on dcml.dataplace_sub_component_id =dp.dataplace_sub_component_id
+inner join nabu.dataplace_sub_component_lookup dscl on dcml.dataplace_sub_component_id =dscl.dataplace_sub_component_id
+where dm.data_movement_id=$templateData.input_data.data_movement_id$ and dp.valid_to_ts='9999-12-31 00:00:00' and dm.valid_to_ts ='9999-12-31 00:00:00'
+),
+CTE2 as (
+select distinct dm.data_movement_id,dcml.metadata_category as destination_type, dscl.dataplace_sub_component_type as destination from nabu.data_movement_details_physical dm inner join nabu.dataplace_physical dp on dp.dataplace_id=dm.destination_dataplace_id
+inner join  nabu.dataplace_component_mapping_lookup dcml on dcml.dataplace_sub_component_id =dp.dataplace_sub_component_id
+inner join nabu.dataplace_sub_component_lookup dscl on dcml.dataplace_sub_component_id =dscl.dataplace_sub_component_id
+where dm.data_movement_id=$templateData.input_data.data_movement_id$ and dp.valid_to_ts='9999-12-31 00:00:00' and dm.valid_to_ts ='9999-12-31 00:00:00'
+)
+select a.data_movement_id,a.source_type as source_metadata_category,b.destination_type as destination_metadata_category, a.source , b.destination from CTE1 a
+inner join
+CTE2 b on a.data_movement_id=b.data_movement_id
+>>
+
+get_scheduling_info(templateData)::=<<
+select refresh_frequency as refresh_freq,to_char(cru_ts::timestamp,'dd  Month yyyy at HH24:mi:ss')as mod_ts,cru_by as mod_by from nabu.job_schedule_details where data_movement_id=$templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31' and job_schedule_id=$templateData.input_data.job_schedule_id$
+>>
+
+get_batch_id(templateData)::=<<
+with get_batch_id as (
+select batch_id,row_number()over(order by flow_ts desc) as latest_flow_ts,flow_ts
+from (
+select   fst.batch_id,max(flow_ts) as flow_ts
+from nabu.flow_status fst
+inner join (select distinct batch_id from nabu.flow_task_status where data_movement_id = $templateData.input_data.data_movement_id$) b
+on fst.batch_id = b.batch_id
+group by fst.batch_id
+)a
+)
+select batch_id from get_batch_id where latest_flow_ts = 1
+>>
+
+
+get_failure_email_id(templateData)::=<<
+select data_movement_id,replace( trim(trailing ']' from trim( leading '[' from (data_movement_additional_info->'flow_details'->\>'email_notification')::json->\>'on_failure' )),'"','')  as email_id,refresh_freq,data_movement_name ,to_char(mod_ts::timestamp,'dd  Month yyyy at HH24:mi:ss ')as  mod_ts ,'tags' as tags,mod_by  from nabu.data_movement_physical where data_movement_id=$templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31'
+>>
+
+get_destination_dataplace_name(templateData)::=<<
+select a.dataplace_name,b.dataplace_sub_component_type as destination_type from nabu.dataplace_sub_component_lookup b inner join
+(select dataplace_name,dataplace_sub_component_id from nabu.dataplace_physical where dataplace_id in (select destination_dataplace_id from nabu.data_movement_details_physical dmp where data_movement_id =$templateData.input_data.data_movement_id$ and valid_to_ts='9999-12-31'))a on a.dataplace_sub_component_id=b.dataplace_sub_component_id
+>>
+
+get_source_type(templateData)::=<<
+select dataplace_sub_component_type as source_type from nabu.dataplace_sub_component_lookup where dataplace_sub_component_id in (
+select dataplace_sub_component_id from nabu.dataplace_physical where dataplace_id in (
+select source_dataplace_id from nabu.data_movement_details_physical where data_movement_id =$templateData.input_data.data_movement_id$))
+>>
+
+get_time_elapsed(templateData)::=<<
+WITH Tablename AS (
+  select date_trunc( 'second',max(flow_ts)-min(flow_ts)) as time_interval
+   from nabu.flow_status
+   where batch_id =$templateData.input_data.batch_id$
+)
+SELECT
+CASE WHEN (time_interval IS NOT NULL) THEN (((((((((date_part('Year'::text,time_interval) ||
+  ' Years '::text)||
+ (date_part('Mon'::text,time_interval) ||
+          ' Months '::text)||
+date_part('day'::text,time_interval)) ||
+          ' Days '::text) ||
+date_part('hour', time_interval)) ||
+          ' Hours '::text) ||
+ date_part('minute'::text, time_interval)) ||
+          ' Mins '::text) ||
+  date_part('second'::text, time_interval)) ||
+           ' Secs '::text)
+ELSE NULL::text END AS time
+FROM Tablename
+>>
+
+get_success_object_count(templateData)::=<<
+select distinct(object_id) as count from nabu.flow_task_status fts where batch_id =$templateData.input_data.batch_id$ and status_code_id =15
+>>
+
+get_failed_object_count(templateData)::=<<
+select distinct(object_id) as count from nabu.flow_task_status fts where batch_id =$templateData.input_data.batch_id$ and status_code_id =16
+>>
+
+list_of_failed_tables_failure(templateData)::=<<
+select dataplace_name,
+count(status_code_id) as total,
+        count(case when status_code_id= 15 then 1 end)  as success_count,
+        count(case when status_code_id in(16,17) then 1 end) as failed_count,
+        count(case when status_code_id in(18) then 1 end) as timed_out
+from (
+select a.batch_id,c.dataplace_name ,status_code_id ,row_number()over(partition by batch_id,object_id order by flow_task_ts desc ) as r
+from
+nabu.flow_task_status a
+inner join nabu.dataplace_table_metadata_physical b on a.object_id = b.table_id and b.valid_to_ts = '9999-12-31'
+inner join nabu.dataplace_physical c on b.dataplace_id = c.dataplace_id and c.valid_to_ts  = '9999-12-31'
+where a.batch_id = $templateData.input_data.batch_id$
+)a where r = 1
+group by dataplace_name
+
+>>
+
+get_counts_of_tables_failure(templateData)::=<<
+$(["get_counts_of_objects_failure_",first(templateData.fetch_source_type).source_metadata_category])(templateData)$
+>>
+
+get_counts_of_objects_failure_relational(templateData)::=<<
+select
+count(status_code_id) as total_objects_count,
+        count(case when status_code_id= 15 then 1 end)  as successful_count,
+        count(case when status_code_id in(16,17) then 1 end) as failed_count,
+        count(case when status_code_id in(18) then 1 end) as timed_out_count
+from (
+select a.batch_id ,status_code_id ,row_number()over(partition by batch_id,object_id order by flow_task_ts desc ) as r
+from
+nabu.flow_task_status a
+inner join nabu.dataplace_table_metadata_physical b on a.object_id = b.table_id and b.valid_to_ts = '9999-12-31'
+where a.batch_id = $templateData.input_data.batch_id$
+)a where r = 1
+>>
+get_counts_of_objects_failure_file(templateData)::=<<
+select
+count(status_code_id) as total_objects_count,
+        count(case when status_code_id= 15 then 1 end)  as successful_count,
+        count(case when status_code_id in(16,17) then 1 end) as failed_count,
+        count(case when status_code_id in(18) then 1 end) as timed_out_count
+from (
+select a.batch_id ,status_code_id ,row_number()over(partition by batch_id,object_id order by flow_task_ts desc ) as r
+from
+nabu.flow_task_status a
+inner join nabu.dataplace_file_metadata dfmb on a.object_id = dfmb.file_id and dfmb.valid_to_ts = '9999-12-31'
+where a.batch_id = $templateData.input_data.batch_id$
+)a where r = 1
+>>
+
+
+get_tags_info(templateData)::=<<
+select c.tag_category_name, b.tag_label_name as tag_value,d.tag_category_color
+from nabu_ui.tag_data_movement a
+inner join nabu_ui.tag_user_labels b on a.tag_label_id = b.tag_label_id and a.valid_to_ts = '9999-12-31'
+inner join nabu_ui.tag_category c on b.tag_category_id = c.tag_category_id
+inner join nabu_ui.tag_category_details d on c.tag_category_id=d.tag_category_id
+where data_movement_id = $templateData.input_data.data_movement_id$
+>>
+
+get_tags_count(templateData)::=<<
+select case when count(*)>0 then true else false end as condition from (select c.tag_category_name, b.tag_label_name as tag_value,d.tag_category_color
+from nabu_ui.tag_data_movement a
+inner join nabu_ui.tag_user_labels b on a.tag_label_id = b.tag_label_id and a.valid_to_ts = '9999-12-31'
+inner join nabu_ui.tag_category c on b.tag_category_id = c.tag_category_id
+inner join nabu_ui.tag_category_details d on c.tag_category_id=d.tag_category_id
+where data_movement_id = $templateData.input_data.data_movement_id$)a
+>>
+
+get_url_info(templateData)::=<<
+select configs->\>'ui_url'||'/monitoring-dashboard' as dashboard_url,configs->\>'ui_url'||'/public/assets/modak_nabu.png' as image_url from (
+select convert_from(decode("configuration"->\>'encodedConfigs','base64'),'utf-8') ::json as configs from nabu_ui.fireshots_service_details fsd
+where service_type = 'fireshots' and valid_to_ts = '9999-12-31')a
+>>
+
+get_time_elapsed_manual_retry(templateData)::= <<
+WITH Tablename AS (
+select date_trunc( 'second',end_ts-start_ts) as time_interval from
+nabu_ui.data_movement_pre_aggregate_stats
+where
+pre_aggregate_id =
+(select max(pre_aggregate_id) from nabu_ui.data_movement_pre_aggregate_stats
+where data_movement_id =$templateData.input_data.data_movement_id$ and batch_id =$first(templateData.get_batch_id).batch_id$ ))
+SELECT
+CASE WHEN (time_interval IS NOT NULL) THEN (((((((((date_part('Year'::text,time_interval) ||
+  ' Years  '::text)||
+ (date_part('Mon'::text,time_interval) ||
+          ' Months  '::text)||
+date_part('day'::text,time_interval)) ||
+          ' Days  '::text) ||
+date_part('hour', time_interval)) ||
+          ' Hours  '::text) ||
+ date_part('minute'::text, time_interval)) ||
+          ' Mins  '::text) ||
+  date_part('second'::text, time_interval)) ||
+           ' Secs  '::text)
+ELSE NULL::text END AS time
+FROM Tablename
+>>
+
+get_success_object_count_manual_retry(templateData)::=<<
+select distinct(object_id) as count from nabu.flow_task_status fts where batch_id =$first(templateData.get_batch_id).batch_id$ and status_code_id =15 and job_type_id=6
+>>
+
+get_failed_object_count_manual_retry(templateData)::=<<
+select distinct(object_id) as count from nabu.flow_task_status fts where batch_id =$first(templateData.get_batch_id).batch_id$ and status_code_id =16 and job_type_id=6
+>>
+
+list_of_failed_tables_failure_manual_retry(templateData)::=<<
+select dataplace_name,
+count(status_code_id) as total,
+count(case when job_type_id = 6 then 1 end) as retried_count,
+        count(case when status_code_id = 15 and job_type_id = 6 then 1 end)  as success_count,
+        count(case when status_code_id in (16,17) and job_type_id = 6  then 1 end) as failed_count,
+		count(case when status_code_id in (18) and job_type_id = 6  then 1 end) as timed_out
+from (
+select a.batch_id,c.dataplace_name ,status_code_id ,job_type_id ,row_number()over(partition by batch_id,object_id order by flow_task_ts desc ) as r
+from
+nabu.flow_task_status a
+inner join nabu.dataplace_table_metadata_physical b on a.object_id = b.table_id and b.valid_to_ts = '9999-12-31'
+inner join nabu.dataplace_physical c on b.dataplace_id = c.dataplace_id and c.valid_to_ts  = '9999-12-31'
+where a.batch_id = $first(templateData.get_batch_id).batch_id$
+)a where r = 1
+group by dataplace_name
+>>
+
+get_counts_of_tables_failure_manual_retry(templateData)::=<<
+select
+count(status_code_id) as total_objects_count,
+count(case when job_type_id = 6 then 1 end) as total_retried_count,
+        count(case when status_code_id = 15 and job_type_id = 6 then 1 end)  as successful_count,
+        count(case when status_code_id in (16,17) and job_type_id = 6  then 1 end) as failed_count,
+		count(case when status_code_id in (18) and job_type_id = 6  then 1 end) as timed_out_count
+from (
+select a.batch_id,status_code_id ,job_type_id ,row_number()over(partition by batch_id,object_id order by flow_task_ts desc ) as r
+from
+nabu.flow_task_status a
+inner join nabu.dataplace_table_metadata_physical b on a.object_id = b.table_id and b.valid_to_ts = '9999-12-31'
+where a.batch_id = $first(templateData.get_batch_id).batch_id$
+)a where r = 1
+>>
+
+email_query_input(templateData)::=<<
+{
+      "batch_id": $templateData.batch_id$,
+      "batch_name": "$templateData.batch_name$",
+      "data_movement_id":$templateData.data_movement_id$,
+      "environment": "$templateData.environment$",
+      "destination_type":"$templateData.destination_type$",
+      "job_schedule_id": $templateData.job_schedule_id$,
+      "is_manual_retry":$templateData.is_success_mail$,
+      "mail_type": "$templateData.mail_type$"
+}
+>>
+
+email_with_flow_timeout_msg_retry_or_not(templateData,message_id,bot_id,parent_task_start_ts,parent_task_end_ts,parent_metadata,parent_bot_name,parent_task_name,dataAsMap)::=<<
+{
+  "bot_name": "EmailBot",
+  "bot_metadata": {
+    $common_metadata(message_id,bot_id,parent_metadata.message_id,parent_metadata.workflow_route_bot_topic_details.EmailBot,parent_metadata)$,
+    "tags": {$common_tags(parent_metadata,"EmailBot")$,"task_dependency":true},
+    "task_retry_intervals_secs": $retry_intervals()$,
+    "message_context": "status_email_for_timed_out_objects$first(dataAsMap.get_mail_type).mail_type$"
+  },
+  "bot_tasks": [
+    {
+      "task_name": "status_email_for_timed_out_objects$first(dataAsMap.get_mail_type).mail_type$",
+      "data_processor": {
+        "classname": "com.modak.bots.processor.NullProcessor",
+        "props": {}
+      },
+      "skipLogicPattern": "",
+      "pre_task_logging_template_details": {
+        "template_group": "templates/artifact_ingestion/common_templates.stg",
+        "template_name": "pre_log_template"
+      },
+      "app_template_details":
+      {
+        "template_group": "templates/artifact_ingestion/email_templates_flow_timed_out.stg",
+        "template_name": "send_mail$first(dataAsMap.get_mail_type).mail_type$"
+      },
+      "input_data": {
+		"mail_info": {
+              "cc": "",
+              "bcc": "",
+              "subject": "Modak Nabu: Pipeline Status",
+              "from": "$first(dataAsMap.get_configurations).from_address$",
+              "to": "$first(dataAsMap.get_failure_email_id).email_id$"
+            },
+		"data_movement_id":$first(dataAsMap.get_failure_email_id).data_movement_id$,
+		"Scheduled_timestamp":"$first(dataAsMap.get_scheduling_info).mod_ts$",
+		"data_movement_name":"$first(dataAsMap.get_failure_email_id).data_movement_name$",
+		"Scheduled_by":"$first(dataAsMap.get_scheduling_info).mod_by$",
+		"tags_count":$first(dataAsMap.get_tags_count).condition$,
+		"total_objects_count":$if(first(dataAsMap.get_mail_type).is_manual_retry)$"$first(dataAsMap.get_counts_of_tables_failure_manual_retry).total_objects_count$"$else$$first(dataAsMap.get_counts_of_tables_failure).total_objects_count$$endif$,
+		"successful_count":"$if(first(dataAsMap.get_mail_type).is_manual_retry)$$first(dataAsMap.get_counts_of_tables_failure_manual_retry).successful_count$$else$$first(dataAsMap.get_counts_of_tables_failure).successful_count$$endif$",
+		"failed_count":"$if(first(dataAsMap.get_mail_type).is_manual_retry)$$first(dataAsMap.get_counts_of_tables_failure_manual_retry).failed_count$$else$$first(dataAsMap.get_counts_of_tables_failure).failed_count$$endif$",
+		$if(first(dataAsMap.get_mail_type).is_manual_retry)$"total_retried_count":"$first(dataAsMap.get_counts_of_tables_failure_manual_retry).total_retried_count$",$endif$
+		"timed_out_count":"$if(first(dataAsMap.get_mail_type).is_manual_retry)$$first(dataAsMap.get_counts_of_tables_failure_manual_retry).timed_out_count$$else$$first(dataAsMap.get_counts_of_tables_failure).timed_out_count$$endif$",
+		"time":"$if(first(dataAsMap.get_mail_type).is_manual_retry)$
+		$first(dataAsMap.get_time_elapsed_manual_retry).time$
+		$else$$first(dataAsMap.get_time_elapsed).time$$endif$",
+		"destination_dataplace_name":"$first(dataAsMap.get_destination_dataplace_name).dataplace_name$",
+        "destination_dataplace_type":"$first(dataAsMap.get_destination_dataplace_name).destination_type$",
+		"source_type":"$first(dataAsMap.get_source_type).source_type$",
+		"dashboard_url":"$first(dataAsMap.get_url_info).dashboard_url$",
+		"image_url":"$first(dataAsMap.get_url_info).image_url$",
+		"fail":true,
+		"failed_tables":$if(first(dataAsMap.get_mail_type).is_manual_retry)$[$dataAsMap.list_of_failed_tables_failure:failed_tables_count(); separator=","$]$else$[$dataAsMap.list_of_failed_tables_failure:failed_tables_count(); separator=","$]$endif$,
+		"tags":[$dataAsMap.get_tags_info:tags_info(); separator=","$]
+      },
+             "output_message_templates": [
+                   {
+                     "template_group": "templates/artifact_ingestion/common_templates.stg",
+                     "template_name": "log_bot_msg"
+                   },
+                   {
+                     "template_group": "templates/artifact_ingestion/common_templates.stg",
+                     "template_name": "task_status_success_msg"
+                   }
+                 ],
+             "error_message_templates": [
+                     {
+                       "template_group": "templates/artifact_ingestion/common_templates.stg",
+                       "template_name": "error_template_create_msg"
+                     }
+                   ]
+    }
+  ]
+}
+>>
+
+tags_info(map)::=<<
+{"tag_category_name": "$map.tag_category_name$",
+"tag_value": "$map.tag_value$",
+"tag_category_color": "$map.tag_category_color$"
+}
+
+>>
+
+failed_tables_count(map)::=<<
+{"success_count": $map.success_count$,
+"total": $map.total$,
+"dataplace_name": "$map.dataplace_name$",
+"fail_count": $map.failed_count$,
+"timed_out": $map.timed_out$
+}
+>>
+
+failed_tables_count_manual_retry(map)::=<<
+{"success_count": $map.success_count$,
+"total": $map.total$,
+"retried_count": "$map.retried_count$",
+"dataplace_name": "$map.dataplace_name$",
+"fail_count": $map.failed_count$,
+"timed_out": $map.timed_out$
+}
+>>
+
+send_mail(templateData)::=<<
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet" />
+    <title>Document</title>
+    <style>
+		* {
+		  box-sizing: border-box;
+		}
+		body { font-size: 14px; font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif; }
+		.v167_19 { width: 100%;background: #004d65 !important;border: 0.20000000298023224px solid rgba(0,0,0,1);overflow: hidden; }.v167_21 { color: rgba(255,255,255,1); padding: 9px !important; font-weight: Medium; font-size: 25px; opacity: 1; text-align: left;align-items: center;}
+		.pipeline_name { padding:0 0 24px 0; color:#212121; font-size:19px; font-weight:bold; line-height:40px; word-break:break-word; margin-right: 3px; }
+		.pipeline_id { font-size: 13px; }
+		.caption { white-space:pre-wrap; display:inline; font-family:'Segoe UI','-apple-system','BlinkMacSystemFont','Roboto','Arial',sans-serif; padding:0px; margin:0px; font-size:14px; line-height:20px; color:#444444; word-break:break-word }
+		.summary-key { vertical-align:top; padding:10px 4px; border-bottom:solid #eaeaea 1px; text-align:left; white-space:nowrap; font-weight:600; min-width:130px }
+		.main-value { vertical-align:top; padding:10px 4px; border-bottom:solid #eaeaea 1px; text-align:left; white-space:normal; width:99%; word-break:break-word; }
+		.second-table-key { border: 1px solid #dddddd; vertical-align:top; padding:10px 4px; border-bottom:solid #eaeaea 1px; text-align:left; word-break: break-word !important; }
+		.second-table-second-key { border: 1px solid #dddddd; vertical-align:top; padding:10px 5px; border-bottom:solid #eaeaea 1px; text-align:right; word-break: break-word !important; width: 80px; }
+		.p-0-24 { padding:0px 24px }
+		.p-0-0-24-0 { padding:0 0 24px 0; }
+		.fs15 { font-size: 15px; }
+		.fs16 { font-size: 16px;font-weight: 600; }
+		.mw592 { max-width:592px; }
+		.bf8 { background:#f8f8f8 }
+		.first-column { padding:0px; max-width:640px; }
+		.p-24-24-8-24 { padding:24px 24px 8px 24px; }
+		.first-table { vertical-align:middle; background-color:white; }
+		.p-16-24-24-24 { padding:16px 24px 24px 24px; }
+		.summary { font-size:21px; line-height:25px; font-weight:600; padding:0px; width:100%; }
+		.main-row { padding:12px 0px 0px 0px; line-height:20px; max-width:544px; }
+		.destination-data-place { padding:12px 0px 0px 0px; line-height:25px; max-width:544px;font-size:16px; font-weight:600; width:100%; }
+		.destination-data { padding:12px 0px 0px 0px; line-height:25px; max-width:544px; width:100%; }
+		.main-table { width:100%; border-collapse:collapse !important; }
+		.failed-css { color: #CD4A45;font-weight: bold; }
+		.tag-value { padding: 0px 6px; border-radius: 15px; font-size: 12px;}
+      </style>
+</head>
+<body>
+<div class="">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" class="v167_19">
+            <tr class="v167_19">
+            <td  width="40%" class="v167_21">
+               Pipeline Status Notification
+               </td>
+               <td  align="right" width="60%" style="color: #ffffff; font-size:15px; font-weight: bold; padding:12px;">
+                <img src="$templateData.image_url$" o:title="spacer" align="right" width="75" style="width: 75px;"/>
+            </td>
+        </tr>
+        </table>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tbody>
+        <tr>
+            <td class="x_hero p-0-24">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" class="x_responsive-table mw592">
+                    <tbody>
+                    <tr>
+                        <td>
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tbody>
+                                <tr>
+                                    <td class="x_title"><span class="pipeline_name">$templateData.data_movement_name$</span><span class="fs15"> Pipeline is timed out</span> </td>
+                                </tr>
+                                <tr>
+                                    <td class="x_message p-0-0-24-0">
+                                        <pre class="caption">Ran for $templateData.time$</pre>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div>
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+            <tbody>
+            <tr>
+                <td class="x_mobile-hide bf8"></td>
+                <td class="x_content bf8 first-column" width="640">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tbody>
+                        <tr>
+                            <td class="mw592 p-24-24-8-24">
+                                <table border="0" width="100%" cellpadding="0" cellspacing="0" class="x_responsive-table first-table">
+                                    <tbody>
+                                    <tr>
+                                        <td class="p-16-24-24-24">
+                                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                                <tbody>
+                                                <tr>
+                                                    <td class="summary">Summary <span class="pipeline_id"> (Pipeline ID: $templateData.data_movement_id$)</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="main-row">
+                                                        <table border="0" cellpadding="0" cellspacing="0" class="main-table">
+                                                            <tbody>
+                                                            <tr>
+                                                                <td class="summary-key">Modified Timestamp</td>
+                                                                <td class="main-value">$templateData.Scheduled_timestamp$ </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td class="summary-key">Status</td>
+                                                                <td class="main-value"><span class="failed-css">Flow Timed Out</span> </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td class="summary-key">Metrics</td>
+                                                                <td class="main-value">Total: $templateData.total_objects_count$   Failed: $templateData.failed_count$  Success: $templateData.successful_count$ Timed Out: $templateData.timed_out_count$</td>
+                                                            </tr>
+                                                            $if(templateData.tags_count)$
+                                                            <tr>
+                                                                <td class="summary-key">Tags</td>
+                                                                <td class="main-value" >
+                                                                    $templateData.tags:get_tags()$
+                                                                </td>
+                                                            </tr>
+                                                            $endif$
+                                                            <tr>
+                                                                <td class="summary-key">Scheduled By</td>
+                                                                <td class="main-value">$templateData.Scheduled_by$</td>
+                                                            </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="mw592 p-24-24-8-24">
+                                <table border="0" width="100%" cellpadding="0" cellspacing="0" class="x_responsive-table first-table">
+                                    <tbody>
+                                    <tr>
+                                        <td class="p-16-24-24-24">
+                                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                                <tbody>
+                                                <tr>
+                                                    <td class="summary">Data Source Details </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="main-row">
+                                                        <table border="0" cellpadding="0" cellspacing="0" class="main-table">
+                                                            <tbody>
+                                                            <tr>
+                                                                <td class="second-table-key fs16"><span class="x_monospaced">Source (Data Place Type: $templateData.source_type$)</span> </td>
+                                                                <td class="second-table-second-key fs16">Total Objects </td>
+                                                                <td class="second-table-second-key fs16">Failed </td>
+                                                                <td class="second-table-second-key fs16">Success </td>
+																<td class="second-table-second-key fs16">Timed Out </td>
+                                                            </tr>
+                                                            $templateData.failed_tables:get()$
+                                                            </tbody>
+                                                        </table>
+                                                        <p style="margin-top:0;margin-bottom:0;"><span
+                                                                style="color:#000000;font-size:10pt;font-family:Roboto !important;font-weight: 500 !important;"> Click <a href="$templateData.dashboard_url$">here</a> for details on the failed tables </span><span
+                                                                style="color:#000000;font-size:10pt;font-family:Roboto !important;font-weight: 500 !important;">.</span></p>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="destination-data"><span class="destination-data-place">Destination Data Place - </span><span>$templateData.destination_dataplace_name$ (Data Place Type: $templateData.destination_dataplace_type$)</span> </td>
+                                                </tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </td>
+                <td class="x_mobile-hide bf8"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+>>
+
+send_mail_manual_retry(templateData)::=<<
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet" />
+    <title>Document</title>
+    <style>
+		* {
+		  box-sizing: border-box;
+		}
+		body { font-size: 14px; font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif; }
+		.v167_19 { width: 100%;background: #004d65 !important;border: 0.20000000298023224px solid rgba(0,0,0,1);overflow: hidden; }.v167_21 { color: rgba(255,255,255,1); padding: 9px !important; font-weight: Medium; font-size: 25px; opacity: 1; text-align: left;align-items: center;}
+		.pipeline_name { padding:0 0 24px 0; color:#212121; font-size:19px; font-weight:bold; line-height:40px; word-break:break-word; margin-right: 3px; }
+		.pipeline_id { font-size: 13px; }
+		.caption { white-space:pre-wrap; display:inline; font-family:'Segoe UI','-apple-system','BlinkMacSystemFont','Roboto','Arial',sans-serif; padding:0px; margin:0px; font-size:14px; line-height:20px; color:#444444; word-break:break-word }
+		.summary-key { vertical-align:top; padding:10px 4px; border-bottom:solid #eaeaea 1px; text-align:left; white-space:nowrap; font-weight:600; min-width:130px }
+		.main-value { vertical-align:top; padding:10px 4px; border-bottom:solid #eaeaea 1px; text-align:left; white-space:normal; width:99%; word-break:break-word; }
+		.second-table-key { border: 1px solid #dddddd; vertical-align:top; padding:10px 4px; border-bottom:solid #eaeaea 1px; text-align:left; word-break: break-word !important; }
+		.second-table-second-key { border: 1px solid #dddddd; vertical-align:top; padding:10px 5px; border-bottom:solid #eaeaea 1px; text-align:right; word-break: break-word !important; width: 80px; }
+		.p-0-24 { padding:0px 24px }
+		.p-0-0-24-0 { padding:0 0 24px 0; }
+		.fs15 { font-size: 15px; }
+		.fs16 { font-size: 16px;font-weight: 600; }
+		.mw592 { max-width:592px; }
+		.bf8 { background:#f8f8f8 }
+		.first-column { padding:0px; max-width:640px; }
+		.p-24-24-8-24 { padding:24px 24px 8px 24px; }
+		.first-table { vertical-align:middle; background-color:white; }
+		.p-16-24-24-24 { padding:16px 24px 24px 24px; }
+		.summary { font-size:21px; line-height:25px; font-weight:600; padding:0px; width:100%; }
+		.main-row { padding:12px 0px 0px 0px; line-height:20px; max-width:544px; }
+		.destination-data-place { padding:12px 0px 0px 0px; line-height:25px; max-width:544px;font-size:16px; font-weight:600; width:100%; }
+		.destination-data { padding:12px 0px 0px 0px; line-height:25px; max-width:544px; width:100%; }
+		.main-table { width:100%; border-collapse:collapse !important; }
+		.failed-css { color: #CD4A45;font-weight: bold; }
+		.tag-value { padding: 0px 6px; border-radius: 15px; font-size: 12px;}
+		.retry-tag-value { padding: 0px 30px; border-radius: 15px; font-size: 12px;} .retry-tag { border: 1px solid #e5e5e5 !important; background: #f2f7fb !important; float: right; } .metrics-key { margin-left: 3px !important } .metrics-value { font-size: 14px !important; }
+      </style>
+</head>
+<body>
+<div class="">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" class="v167_19">
+            <tr class="v167_19">
+            <td  width="40%" class="v167_21">Pipeline Status Notification
+            </td>
+        <td  align="right" width="60%" style="color: #ffffff; font-size:15px; font-weight: bold; padding:12px;">
+            <img src="$templateData.image_url$" o:title="spacer" align="right" width="75" style="width: 75px;"/>
+             </td>
+        </tr>
+        </table>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tbody>
+        <tr>
+            <td class="x_hero p-0-24">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" class="x_responsive-table mw592">
+                    <tbody>
+                    <tr>
+                        <td>
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tbody>
+                                <tr>
+                                    <td class="x_title"><span class="pipeline_name">$templateData.data_movement_name$</span><span class="fs15"> Pipeline is timed out</span> </td>
+                                </tr>
+                                <tr>
+                                    <td class="x_message p-0-0-24-0">
+                                        <pre class="caption">Ran for $templateData.time$</pre>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div>
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+            <tbody>
+            <tr>
+                <td class="x_mobile-hide bf8"></td>
+                <td class="x_content bf8 first-column" width="750">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tbody>
+                        <tr>
+                            <td class="mw592 p-24-24-8-24">
+                                <table border="0" width="100%" cellpadding="0" cellspacing="0" class="x_responsive-table first-table">
+                                    <tbody>
+                                    <tr>
+                                        <td class="p-16-24-24-24">
+                                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                                <tbody>
+                                                <tr>
+                                                    <td class="summary">Summary <span class="pipeline_id"> (Pipeline ID: $templateData.data_movement_id$)</span>
+                                                        <span class="retry-tag-value retry-tag" style="border: 1px solid #ff0000;">Retried</span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="main-row">
+                                                        <table border="0" cellpadding="0" cellspacing="0" class="main-table">
+                                                            <tbody>
+                                                            <tr>
+                                                                <td class="summary-key">Modified Timestamp</td>
+                                                                <td class="main-value">$templateData.Scheduled_timestamp$ </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td class="summary-key">Status</td>
+                                                                <td class="main-value"><span class="failed-css">Flow Timed Out</span> </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td class="summary-key">Metrics</td>
+                                                                <td class="main-value">
+                                                                    <span >Total Objects: </span> <span class="metrics-value">$templateData.total_objects_count$</span>
+                                                                    <span class="metrics-key">Retried: </span> <span class="metrics-value">$templateData.total_retried_count$</span>
+                                                                    <span class="metrics-key">Failed: </span> <span class="metrics-value">$templateData.failed_count$</span>
+                                                                    <span class="metrics-key">Success: </span> <span class="metrics-value">$templateData.successful_count$</span>
+                                                                    <span class="metrics-key">Timed Out: </span> <span class="metrics-value">$templateData.timed_out_count$</span>
+                                                                    </td>
+                                                            </tr>
+                                                            $if(templateData.tags_count)$
+                                                            <tr>
+                                                                <td class="summary-key">Tags</td>
+                                                                <td class="main-value" >$templateData.tags:get_tags()$ </td>
+                                                            </tr>
+                                                            $endif$
+                                                            <tr>
+                                                                <td class="summary-key">Scheduled By</td>
+                                                                <td class="main-value">$templateData.Scheduled_by$</td>
+                                                            </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="mw592 p-24-24-8-24">
+                                <table border="0" width="100%" cellpadding="0" cellspacing="0" class="x_responsive-table first-table">
+                                    <tbody>
+                                    <tr>
+                                        <td class="p-16-24-24-24">
+                                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                                <tbody>
+                                                <tr>
+                                                    <td class="summary">Data Source Details </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="main-row">
+                                                        <table border="0" cellpadding="0" cellspacing="0" class="main-table">
+                                                            <tbody>
+                                                            <tr>
+                                                                <td class="second-table-key fs16"><span class="x_monospaced">Source (Data Place Type: $templateData.source_type$)</span> </td>
+                                                                <td class="second-table-second-key fs16">Total Objects </td>
+                                                                <td class="second-table-second-key fs16">Retried </td>
+                                                                <td class="second-table-second-key fs16">Failed </td>
+                                                                <td class="second-table-second-key fs16">Success </td>
+                                                                <td class="second-table-second-key fs16">Timed Out </td>
+                                                            </tr>
+                                                            $templateData.failed_tables:get_maual_retry()$
+                                                            </tbody>
+                                                        </table>
+                                                        <p style="margin-top:0;margin-bottom:0;"><span style="color:#000000;font-size:10pt;font-weight: 500 !important;padding-top: 5px;"> Click <a href="$templateData.dashboard_url$">here</a> for details on the failed tables </span><span style="color:#000000;font-size:10pt;font-weight: 500 !important;">.</span></p>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="destination-data"><span class="destination-data-place">Destination Data Place - </span><span>$templateData.destination_dataplace_name$ (Data Place Type: $templateData.destination_dataplace_type$)</span> </td>
+                                                </tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </td>
+                <td class="x_mobile-hide bf8"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+>>
+
+get(map)::=<<
+      <tr>
+      <td class="second-table-key"><span class="x_monospaced">$map.dataplace_name$</span> </td>
+      <td class="second-table-second-key">$map.total$</td>
+      <td class="second-table-second-key">$map.fail_count$</td>
+      <td class="second-table-second-key">$map.success_count$ </td>
+      <td class="second-table-second-key">$map.timed_out$ </td>
+      </tr>
+>>
+
+get_maual_retry(map)::=<<
+      <tr>
+      <td class="second-table-key"><span class="x_monospaced">$map.dataplace_name$</span> </td>
+      <td class="second-table-second-key">$map.total$</td>
+	  <td class="second-table-second-key">$map.retried_count$</td>
+      <td class="second-table-second-key">$map.fail_count$</td>
+      <td class="second-table-second-key">$map.success_count$ </td>
+      <td class="second-table-second-key">$map.timed_out$ </td>
+      </tr>
+>>
+
+get_tags(map)::=<<
+<span class="tag-value" style="border: 1px solid $map.tag_category_color$;">$map.tag_category_name$: $map.tag_value$</span>
+>>
+
