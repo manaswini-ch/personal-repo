@@ -1,2 +1,4 @@
 https://codelabs.developers.google.com/codelabs/connecting-to-cloud-sql-with-cloud-functions/#2 -- MY SQL
 https://github.com/guillaumeblaquiere/serverless-oracle/blob/master/python/function/main.py -- ORACLE
+https://medium.com/google-cloud/reach-oracle-db-in-serverless-271293f79861 -- Medium.com (for oracle)
+
