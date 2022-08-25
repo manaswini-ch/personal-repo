@@ -1,27 +1,2 @@
-almaren.builder.sourceJdbcParallel
-($([first(templateData.table_metadata_output).source_type,"_source"])(templateData)$,
-       $if(first(templateData.table_partition_output).is_sub_partition)$
-       createSubPartitionQueries(staticQuery,x),$else$
-       createPartitionQueries(staticQuery,x),$endif$
-       our parallel conn code,
-       Some(Ldap.source.username),Some(Ldap.source.password),Map("fetchsize" -> Constants.DB.fetchSize))
-       .batch
-       
-jdbcPartitionSubPartitionGeneration(templateData)::=<<
-$if(first(templateData.table_partition_output).is_sub_partition)$
-$templateData.table_partition_output:generateSubPartitions(templateData);separator=","$
-$else$
-$templateData.table_partition_output:generatePartitions(templateData);separator=","$
-$endif$
->>
-generateSubPartitions(subpartitions)::=<<
-"($subpartitions.sub_partition_name$)"
->>
-generatePartitions(partitions)::=<<
-"($partitions.partition_name$)"
->>
-
-
-val x=Random.shuffle(List($jdbcPartitionSubPartitionGeneration(templateData)$))
-
-=IF(Sheet1!A1 <> Sheet2!A1, "Sheet1:"&Sheet1!A1&" vs Sheet2:"&Sheet2!A1, "")
+https://codelabs.developers.google.com/codelabs/connecting-to-cloud-sql-with-cloud-functions/#2 -- MY SQL
+https://github.com/guillaumeblaquiere/serverless-oracle/blob/master/python/function/main.py -- ORACLE
