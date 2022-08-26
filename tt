@@ -1,6 +1,12 @@
 https://codelabs.developers.google.com/codelabs/connecting-to-cloud-sql-with-cloud-functions/#2 -- MY SQL
 https://github.com/guillaumeblaquiere/serverless-oracle/blob/master/python/function/main.py -- ORACLE
 https://medium.com/google-cloud/reach-oracle-db-in-serverless-271293f79861 -- Medium.com (for oracle)
+https://stackoverflow.com/questions/21370431/how-to-access-hive-via-python -- hive
+https://stackoverflow.com/questions/47350584/connecting-hive-with-python -- hive
+https://stackoverflow.com/questions/52823621/how-to-connect-to-netezza-database-from-python -- netezza
+https://dzone.com/articles/full-working-example-of-connecting-netezza-from-ja -- netezza
+https://www.geeksforgeeks.org/how-to-connect-python-with-sql-database/ -- mysql
+https://docs.microsoft.com/en-us/sql/connect/python/pymssql/step-3-proof-of-concept-connecting-to-sql-using-pymssql?view=sql-server-ver16 -- sql server
 https://www.youtube.com/watch?v=_nYXeEe-hqc&t=165s -- very basic intro to cloud functions
 https://www.youtube.com/watch?v=kXk78ihBpiQ -- intro to cloud functions and their purpose
 https://cloud.google.com/docs/samples?l=python&p=functions -- offical examples
