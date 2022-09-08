@@ -10,3 +10,5 @@ https://docs.microsoft.com/en-us/sql/connect/python/pymssql/step-3-proof-of-conc
 https://www.youtube.com/watch?v=_nYXeEe-hqc&t=165s -- very basic intro to cloud functions
 https://www.youtube.com/watch?v=kXk78ihBpiQ -- intro to cloud functions and their purpose
 https://cloud.google.com/docs/samples?l=python&p=functions -- offical examples
+https://cloud.google.com/sdk/gcloud/reference/functions -- gcloud sdk cloud function commands
+https://cloud.google.com/functions/docs/functions-framework -- functions framework
