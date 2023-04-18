@@ -1,4 +1,5 @@
 from pyspark.sql.types import StructType,StructField, StringType, IntegerType
+from file2 import *
 def schemaCreator(dataDF):
 	schema = StructType([
 			StructField('name', StructType([
