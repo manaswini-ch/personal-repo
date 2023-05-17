@@ -9,3 +9,10 @@ where dp.dataplace_sub_component_id =2 and table_type = 'V' and table_size is no
 select * from nabu.dataplace_table_metadata_physical dtmp 
 inner join nabu.dataplace_physical dp on dtmp.dataplace_id = dp.dataplace_id 
 where dp.dataplace_sub_component_id =2 and table_type = 'M' and table_size is not null
+
+
+
+	val query="select * from nabu.dba  ".split(" ")
+	val schema_nam=query(query.length-1).split(".")
+	val schema_name="nabu.da".split("""\.""")
+	print(schema_name(0), schema_name(1))
