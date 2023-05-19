@@ -16,3 +16,12 @@ where dp.dataplace_sub_component_id =2 and table_type = 'M' and table_size is no
 	val schema_nam=query(query.length-1).split(".")
 	val schema_name="nabu.da".split("""\.""")
 	print(schema_name(0), schema_name(1))
+	
+	
+	var query="select from   nabu.dba  from where ca_id= n.a".split(" ").map(_.trim)
+	query=query.filter(_ !="")
+	query.foreach(println) 
+	
+	
+	var index= query.indexOf("from")
+	val schema_name=query(index+1).split("""\.""")
