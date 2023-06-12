@@ -62,3 +62,8 @@ inner join sys.partition_parameters p
 on f.function_id = p.function_id
 inner join sys.types t
 on t.system_type_id = p.system_type_id
+
+
+
+AnalysisException:
+	Failed to find data source: avro. Avro is built-in but external data source module since Spark 2.4. Please deploy the application as per the deployment section of "Apache Avro Data Source Guide".
