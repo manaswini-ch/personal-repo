@@ -64,6 +64,15 @@ inner join sys.types t
 on t.system_type_id = p.system_type_id
 
 
+[12:35] Akanksha Chinthapally
+
+Can you please try the same pipeline with giving this package in the dataproc scripts
+
+org.apache.spark:spark-avro_2.12:3.1.3
+
+${NABU_SPARK_BOT_HOME}/jars/https/repo1.maven.org/maven2/org/apache/spark/spark-avro_2.12/3.1.3/spark-avro_2.12-3.1.3.jar,\
+
+heart 1
 
 AnalysisException:
 	Failed to find data source: avro. Avro is built-in but external data source module since Spark 2.4. Please deploy the application as per the deployment section of "Apache Avro Data Source Guide".
