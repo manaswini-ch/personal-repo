@@ -5,6 +5,8 @@ where dp.dataplace_sub_component_id =2 and table_type = 'V' and table_size is no
  https://mvsforums.com/helpboards/viewtopic.php?p=11074#11074
 
  
+gcloud_itoken = subprocess.check_output(["gcloud","auth", "print-identity-token"])
+gcloud_itoken_str = gcloud_itoken.decode().strip()
 
 select * from nabu.dataplace_table_metadata_physical dtmp 
 inner join nabu.dataplace_physical dp on dtmp.dataplace_id = dp.dataplace_id 
