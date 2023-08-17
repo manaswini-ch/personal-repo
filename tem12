@@ -5,6 +5,44 @@ https://gist.github.com/sb1205/4a14bb8b90b9b0b09067e5585e5cdf6c#file-parition_al
 
 https://gist.github.com/sb1205/d0c41fd7bda4c98046c07003a516b50a#file-parallel
 
+Overall metrics for 3 tables:
+
+ 
+
+THXFEES metrics for one partion (i.e partition no 15)
+
+main query - Select where between (low_key subquery) and (high_key subquery) - 1 min 51 sec
+
+low_key subquery - 167 ms
+
+high_key subquery - 178 ms
+
+main query - Select where between (57460) and (57999) - 412 ms
+
+ 
+
+THXCOCD metrics for one partition (i.e partition no 1)
+
+main query - Select where between (low_key subquery) and (high_key subquery) - 11 min 58 sec
+
+low_key subquery - 216 ms
+
+high_key subquery - 292 ms
+
+main query - Select where between (57460) and (57999) - 1 min 14 sec
+
+ 
+
+THXMOCL metrics for one partition (i.e partition no 9)
+
+main query - Select where between (low_key subquery) and (high_key subquery) - 27 sec
+
+low_key subquery - 174 ms
+
+high_key subquery - 164 ms
+
+main query - Select where between (57460) and (57999) - 247 ms
+
 THXFEES
 
 HASH PARALLEL-
