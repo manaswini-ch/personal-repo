@@ -5,6 +5,30 @@ https://gist.github.com/sb1205/4a14bb8b90b9b0b09067e5585e5cdf6c#file-parition_al
 
 https://gist.github.com/sb1205/d0c41fd7bda4c98046c07003a516b50a#file-parallel
 
+THXFEES
+
+HASH PARALLEL-
+
+Hash column: SCHEDULE_NBR
+
+No of connections: 3
+
+Records ingested: 540143642
+
+Time taken for ingestion: 2 hrs 22 mins 47 secs
+
+
+
+SRC PARALLEL-
+
+Partition column: SCHEDULE_NBR
+
+No of connections: 3
+
+Records ingested: 540143642
+
+Time taken for ingestion: 3 hrs 58 mins 25 secs
+
 select * from nabu.dataplace_table_metadata_physical dtmp 
 inner join nabu.dataplace_physical dp on dtmp.dataplace_id = dp.dataplace_id 
 where dp.dataplace_sub_component_id =2 and table_type = 'V' and table_size is not null
