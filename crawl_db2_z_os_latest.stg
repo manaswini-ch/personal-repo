@@ -1,0 +1,974 @@
+getPreviousCrawlJobInfo(data)::=<<
+with tmp as(select crawl_id, dataplace_component_type_id, dataplace_id, schema_directory_id, row_number() over(partition by schema_directory_id order by crawl_start_ts desc) as rownum
+from nabu.crawl_xref_physical
+where dataplace_id=$data.sourceAttributes.dataplace_id$
+and dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$
+and schema_directory_id in ($data.sourceAttributes.schema_id_list$))
+
+select crawl_id, dataplace_component_type_id, dataplace_id, schema_directory_id from tmp where tmp.rownum = 1
+>>
+
+getNewCrawlJobInfo(data)::=<<
+select $data.sourceAttributes.dataplace_id$,uuid_in((md5((random())::text))::cstring) as crawl_id,$getPreviousCrawlId(data.getPreviousCrawlJobInfo)$ as prev_crawl_id,
+'$data.sourceAttributes.source_type$'
+>>
+
+updateCrawlJobInfo(data)::=<<
+$if(first(data.getPreviousCrawlJobInfo).crawl_id)$
+update nabu.crawl_xref_physical
+set valid_to_ts = current_timestamp
+where crawl_id in ($temp(data.getPreviousCrawlJobInfo)$) and schema_directory_id in ($data.sourceAttributes.schema_id_list$)
+$else$$endif$
+>>
+
+temp(list)::=<<
+$list:{obj|'$obj.crawl_id$'}; separator = ","$
+>>
+
+insertCrawlJobInfo(data)::=<<
+with tmp as(select crawl_id as prev_crawl_id, dataplace_component_type_id, dataplace_id, schema_directory_id,
+row_number() over(partition by schema_directory_id order by crawl_start_ts desc) as rownum
+from nabu.crawl_xref_physical
+where dataplace_id=$data.sourceAttributes.dataplace_id$
+and dataplace_component_type_id=$data.sourceAttributes.dataplace_component_type_id$
+and schema_directory_id in ($data.sourceAttributes.schema_id_list$)),
+ tmp2 as(select * from tmp where rownum = 1)
+
+insert into nabu.crawl_xref_physical(dataplace_id,schema_directory_id,dataplace_component_type_id,crawl_id,prev_crawl_id,crawl_start_ts,crawl_end_ts,valid_from_ts,valid_to_ts,crawl_instance_id)
+select '$data.sourceAttributes.dataplace_id$',a.schema_id,
+'$data.sourceAttributes.dataplace_component_type_id$',$getCrawlId(first(data.getNewCrawlJobInfo))$,t.prev_crawl_id,current_timestamp,
+TIMESTAMP '9999-12-31 00:00:00',current_timestamp,TIMESTAMP '9999-12-31 00:00:00',$data.sourceAttributes.crawl_instance_id$
+from nabu.dataplace_relational_component_physical a left join tmp2 t on
+a.dataplace_id = t.dataplace_id
+and a.dataplace_component_type_id = t.dataplace_component_type_id
+and a.schema_id in (t.schema_directory_id)
+where
+a.dataplace_id = $data.sourceAttributes.dataplace_id$
+and a.dataplace_component_type_id =$data.sourceAttributes.dataplace_component_type_id$
+and a.valid_to_ts ='9999-12-31'
+and a.is_active = true
+and a.schema_id in ($data.sourceAttributes.schema_id_list$)
+>>
+
+stagingTruncate_Batch(data)::=<<
+delete from staging.table_privileges_from_dataplace_$data.resourceId$;
+delete from staging.index_column_from_dataplace_$data.resourceId$;
+delete from staging.column_metadata_from_dataplace_$data.resourceId$;
+delete from staging.table_metadata_from_dataplace_$data.resourceId$;
+delete from staging.src_table_entity_from_source_estimated_rows_$data.resourceId$;
+delete from staging.temp_src_table_entity_delete_estimated_rows_$data.resourceId$;
+delete from staging.temp_src_table_entity_update_estimated_rows_$data.resourceId$;
+delete from staging.partition_table_info_from_dataplace_$data.resourceId$;
+delete from staging.partitions_info_from_dataplace_$data.resourceId$;
+delete from staging.partition_column_info_from_dataplace_$data.resourceId$;
+>>
+
+
+query_dba_all_tables(data) ::= <<
+select
+$data.sourceAttributes.dataplace_id$ as dataplace_id,
+NULLIF(1,1) as schema_id,
+$data.sourceAttributes.dataplace_component_type_id$ as dataplace_component_type_id,
+trim(TB.CREATOR) as schema_name,
+TB.NAME as table_name,
+TB.OWNER as table_owner ,NULLIF(1,1) as status,
+case when TB.CARD < 0 then NULLIF(1,1) else TB.CARD end as estimated_rows,
+NULLIF(1,1) as num_of_columns,
+NULLIF(1,1) AS inserts,
+NULLIF(1,1) AS updates,
+NULLIF(1,1) AS deletes,
+TB.CREATEDTS AS create_table_ts,
+TB.ALTEREDTS AS modify_table_ts,
+NULLIF(1,1) as table_size,
+'source' as table_layer,
+NULLIF(1,1) as location_path,
+case when TB.TYPE = 'S' then 'M' else TB.TYPE end as table_type ,
+TB.TSNAME as tablespace_name,
+'$data.sourceAttributes.connection_template$' as table_format,
+NULLIF(1,1) as is_encrypted,
+NULLIF(1,1) as is_compressed,
+NULLIF(1,1) as table_type_owner,
+NULLIF(1,1) as query
+from SYSIBM.SYSTABLES TB
+JOIN
+SYSIBM.SYSTABLESPACE TS ON TB.TSNAME = TS.NAME
+where TB.CREATOR not like 'SYS%'
+and TB.CREATOR IN ($data.sourceAttributes.schema_list$);
+>>
+
+stagingInsert_TableMetadataFromSource(data)::=<<
+insert into staging.table_metadata_from_dataplace_$data.resourceId$(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_name, table_owner, status, estimated_rows, num_of_columns, inserts, updates, deletes, create_table_ts, modify_table_ts, table_size, table_layer, location_path, table_type, tablespace_name, table_format, is_encrypted, is_compressed, table_type_owner, query)
+values(?,?,?,?,?,?,coalesce(?,'VALID'),?,?,?,?,?,TO_TIMESTAMP(?,'YYYY-MM-DD HH24:MI:SS'),TO_TIMESTAMP(?,'YYYY-MM-DD HH24:MI:SS'),?,?,?,?,?,?,?::boolean,?::boolean,?,regexp_replace(?,'''','''''','g'));
+>>
+
+query_all_tables_cols(data)::=<<
+with tmp as (
+select OWNER AS tableowner, NAME AS tablename, trim(CREATOR) AS schemaname,
+CASE when CARD > 0 THEN CARD ELSE NULLIF(1,1) END AS rows_count from SYSIBM.SYSTABLES
+)
+SELECT
+$data.sourceAttributes.dataplace_id$ as dataplace_id,
+NULLIF(1,1) as schema_id,
+$data.sourceAttributes.dataplace_component_type_id$ as dataplace_component_type_id,
+trim(a.TBCREATOR) as schema_name,
+b.tableowner as table_owner,
+a.TBNAME AS table_name,
+a.NAME AS column_name,
+trim(a.COLTYPE) as data_type,
+NULLIF(1,1) as data_length,
+a.LENGTH as data_precision,
+a.SCALE as data_scale,
+NULLIF(1,1) as is_nullable,
+a.COLNO as ordinal_position,
+a.COLCARD as num_of_distinct,
+NULLIF(1,1) as low_value,
+NULLIF(1,1) as high_value,
+a.REMARKS as column_comment,
+NULLIF(1,1) as column_format,
+NULLIF(1,1) as num_of_nulls,
+a.LENGTH as avg_col_length,
+CASE WHEN a.COLCARD > 0 THEN
+CAST((a.COLCARD)/(b.rows_count) AS NUMERIC(18,0))
+ELSE NULLIF(1,1) END as CARDINALITY
+FROM    SYSIBM.SYSCOLUMNS a, tmp b
+WHERE    a.TBCREATOR in ($data.sourceAttributes.schema_list$)
+AND      a.TBCREATOR = b.schemaname
+AND      a.TBNAME = b.tablename;
+>>
+
+stagingInsert_ColumnsDataFromSource(data)::=<<
+insert into staging.column_metadata_from_dataplace_$data.resourceId$(dataplace_id, schema_id, dataplace_component_type_id,schema_name, table_owner, table_name, column_name, data_type, data_length, data_precision, data_scale, is_nullable, ordinal_position, num_of_distinct, low_value, high_value, column_comment, column_format, num_of_nulls, avg_col_length, cardinality)
+values(?,?,?,?,?,?,?,?,?,?,?,case when ?='Y' then true::boolean else false::boolean end,?,?,?,?,?,?,?,?,?::numeric);
+>>
+
+query_dba_indexes(data)::=<<
+with tmp1 as(
+select
+ind.TBNAME as table_name,
+ind.NAME as index_name,
+cols.COLNAME as column_name,
+ind.OWNER as table_owner
+from SYSIBM.SYSINDEXES ind
+join sysibm.syskeys cols
+on ind.NAME = cols.IXNAME
+and ind.CREATOR = cols.IXCREATOR
+WHERE ind.CREATOR NOT LIKE 'SYS%'
+)
+SELECT
+$data.sourceAttributes.dataplace_id$ as dataplace_id,
+NULLIF(1,1) as schema_id,
+$data.sourceAttributes.dataplace_component_type_id$ as dataplace_component_type_id,
+trim(t2.TBCREATOR) as schema_name,
+t1.table_owner,
+t1.table_name,
+t1.column_name,
+t1.index_name,
+t2.COLNO AS ordinal_position,
+NULLIF(1,1) as sort_order
+FROM     tmp1 t1
+join SYSIBM.SYSCOLUMNS t2 on t2.TBNAME = t1.table_name and t2.NAME =t1.column_name
+WHERE
+t2.TBCREATOR in ($data.sourceAttributes.schema_list$);
+>>
+
+stagingInsert_IndexColumnsFromSource(data)::=<<
+insert into staging.index_column_from_dataplace_$data.resourceId$(dataplace_id, schema_id, dataplace_component_type_id, schema_name, table_owner, table_name, column_name, index_name, ordinal_position, sort_order)
+values(?,?,?,?,?,?,?,?,?,?);
+>>
+
+query_dba_privileges(data)::=<<
+Select
+$data.sourceAttributes.dataplace_id$ as dataplace_id,
+NULLIF(1,1) as schema_id,
+$data.sourceAttributes.dataplace_component_type_id$ as dataplace_component_type_id,
+trim(TCREATOR) as schema_name,
+TTNAME as table_name,
+GRANTEE as grantee,
+GRANTOR as grantor,
+CASE
+    WHEN ALTERAUTH  = 'Y' THEN 'ALTER'
+    WHEN DELETEAUTH = 'Y' THEN 'DELETE'
+    WHEN INDEXAUTH = 'Y' THEN 'INDEX'
+	WHEN INSERTAUTH = 'Y' THEN 'INSERT'
+    WHEN REFERENCESAUTH = 'Y' THEN 'REFERENCES'
+    WHEN SELECTAUTH = 'Y' THEN 'SELECT'
+    WHEN UPDATEAUTH = 'Y' THEN 'UPDATE'
+	WHEN TRIGGERAUTH = 'Y' THEN 'TRIGGER'
+END AS PRIVILEGES,
+CASE
+    WHEN ALTERAUTH  = 'G' THEN 'ALTER'
+    WHEN DELETEAUTH = 'G' THEN 'DELETE'
+    WHEN INDEXAUTH = 'G' THEN 'INDEX'
+	WHEN INSERTAUTH = 'G' THEN 'INSERT'
+    WHEN REFERENCESAUTH = 'G' THEN 'REFERENCES'
+    WHEN SELECTAUTH = 'G' THEN 'SELECT'
+    WHEN UPDATEAUTH = 'G' THEN 'UPDATE'
+	WHEN TRIGGERAUTH = 'G' THEN 'TRIGGER'
+END AS is_grantable
+from SYSIBM.SYSTABAUTH
+where tabschema in ($data.sourceAttributes.schema_list$)
+>>
+
+stagingInsert_TablePrivilegesFromSource(data)::=<<
+insert into staging.table_privileges_from_dataplace_$data.resourceId$(dataplace_id, schema_id, dataplace_component_type_id,
+schema_name,table_name, grantee, grantor,privilege_type,is_grantable)
+values(?,?,?,?,?,?,?,?,?::boolean)
+>>
+
+query_dba_partition_tables(data)::=<<
+WITH partitionkey_count AS (
+   SELECT TABSCHEMA, TABNAME, MAX(partitionkeycount) AS partitionkeycount
+   FROM (
+		   	SELECT OWNER as TABSCHEMA, NAME as TABNAME, MAX(PARTITION) AS partitionkeycount
+		   	FROM SYSIBM.SYSTABSTATS
+   			where OWNER IN ($data.sourceAttributes.schema_list$)
+		    GROUP BY NAME, OWNER
+		    UNION
+		    SELECT TBCREATOR as TABSCHEMA , TBNAME as TABNAME, MAX(PARTKEY_COLSEQ) AS partitionkeycount FROM SYSIBM.SYSCOLUMNS
+   		  WHERE TBCREATOR IN ($data.sourceAttributes.schema_list$)
+		    GROUP BY TBNAME, TBCREATOR
+		)
+   where TABSCHEMA IN ($data.sourceAttributes.schema_list$)
+   GROUP BY TABNAME, TABSCHEMA
+),
+numof_partitions AS (
+   SELECT DBNAME, TSNAME, OWNER AS schemaname, NAME AS tablename,COUNT(PARTITION) AS numofpartitions, '' as STATUS
+   FROM SYSIBM.SYSTABSTATS
+   where OWNER IN ($data.sourceAttributes.schema_list$)
+   GROUP BY NAME, OWNER, DBNAME, TSNAME
+),
+tmp AS (
+SELECT
+       trim(t2.schemaname) as schema_name,
+       t2.tablename AS table_name, p.type  as partition_type,
+       numofpartitions AS num_of_partitions,
+      partitionkeycount AS partition_key_count,
+      t2.STATUS,
+      NULLIF(1,1) as is_composite,
+      NULLIF(1,1) as additional_info
+FROM  numof_partitions t2
+LEFT outer JOIN partitionkey_count t
+ON  t2.schemaname = t.TABSCHEMA AND t2.tablename = t.TABNAME
+INNER JOIN (select distinct dbname,tsname,type from sysibm.SYSTABLEPART) p
+ON  t2.DBNAME = p.DBNAME AND t2.TSNAME = p.TSNAME
+)
+SELECT
+       $data.sourceAttributes.dataplace_id$ as dataplace_id,
+       NULLIF(1,1) as schema_id,
+       $data.sourceAttributes.dataplace_component_type_id$ as dataplace_component_type_id,
+		schema_name,
+		table_name,
+		partition_type,
+		num_of_partitions,
+		partition_key_count,
+		status,
+		is_composite,
+     	additional_info
+FROM tmp
+>>
+
+stagingInsert_PartitionTableMetadataFromSource(data)::=<<
+insert into staging.partition_table_info_from_dataplace_$data.resourceId$(dataplace_id, schema_id, dataplace_component_type_id,
+schema_name,table_name, partition_type, num_of_partitions, partition_key_count, status, is_composite, additional_info)
+values(?,?,?,?,?,?,?,?,?,?,?)
+>>
+
+
+query_dba_partitions_info(data)::=<<
+with colstats as(
+SELECT trim(TBOWNER) as schema_name,
+       dp.TBNAME AS table_name,
+       dp.PARTITION AS partition_id,
+       concat('part',dp.partition) AS partition_name,
+       dp.PARTITION AS partition_position,
+       NULLIF(1,1) AS db_partition_position,
+       dp.COLCARD AS num_of_rows,
+       NULLIF(1,1) AS is_compressed,
+       dp.name
+FROM SYSIBM.SYSCOLSTATS dp inner join sysibm.syscolumns sc on dp.tbowner=sc.tbcreator 
+and dp.tbname=sc.tbname and dp.name=sc.name and sc.partkey_colseq=1
+),
+trim_lowkey as(
+select TRIM(L '8' FROM HEX(lowkey)) as trimmed_key,cs.*
+from SYSIBM.SYSCOLSTATS a inner join
+colstats cs on cs.table_name=a.TBNAME and cs.name=a.name and
+cs.partition_position=a.partition and cs.schema_name=a.tbowner),
+
+concat_zero_lowkey as( SELECT
+CASE (LENGTH(trim_lowkey.trimmed_key))
+WHEN 1 THEN CONCAT('000000000000000',trim_lowkey.trimmed_key)
+WHEN 2 THEN CONCAT('00000000000000',trim_lowkey.trimmed_key)
+WHEN 3 THEN CONCAT('0000000000000',trim_lowkey.trimmed_key)
+WHEN 4 THEN CONCAT('000000000000',trim_lowkey.trimmed_key)
+WHEN 5 THEN CONCAT('00000000000',trim_lowkey.trimmed_key)
+WHEN 6 THEN CONCAT('0000000000',trim_lowkey.trimmed_key)
+WHEN 7 THEN CONCAT('000000000',trim_lowkey.trimmed_key)
+WHEN 8 THEN CONCAT('00000000',trim_lowkey.trimmed_key)
+WHEN 9 THEN CONCAT('0000000',trim_lowkey.trimmed_key)
+WHEN 10 THEN CONCAT('000000',trim_lowkey.trimmed_key)
+WHEN 11 THEN CONCAT('00000',trim_lowkey.trimmed_key)
+WHEN 12 THEN CONCAT('0000',trim_lowkey.trimmed_key)
+WHEN 13 THEN CONCAT('000',trim_lowkey.trimmed_key)
+WHEN 14 THEN CONCAT('00',trim_lowkey.trimmed_key)
+WHEN 15 THEN CONCAT('0',trim_lowkey.trimmed_key)
+END as lowkey_final,trim_lowkey.* from trim_lowkey),
+lowkey as(
+SELECT (CASE SUBSTR(concat_zero_lowkey.lowkey_final,1,1)     
+        WHEN 'A' THEN  10               
+        WHEN 'B' THEN  11               
+        WHEN 'C' THEN  12               
+        WHEN 'D' THEN  13               
+        WHEN 'E' THEN  14               
+        WHEN 'F' THEN  15               
+        WHEN '0' THEN  0                 
+        WHEN '1' THEN  1                 
+        WHEN '2' THEN  2                 
+        WHEN '3' THEN  3                 
+        WHEN '4' THEN  4                 
+        WHEN '5' THEN  5                 
+        WHEN '6' THEN  6                 
+        WHEN '7' THEN  7                 
+        WHEN '8' THEN  8                 
+        WHEN '9' THEN  9                 
+        END) * power(16,cast (15 as bigint)) +            
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,2,1)   
+        WHEN 'A' THEN  10             
+        WHEN 'B' THEN  11             
+        WHEN 'C' THEN  12             
+        WHEN 'D' THEN  13             
+        WHEN 'E' THEN  14             
+        WHEN 'F' THEN  15             
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (14 as bigint)) +        
+       (CASE SUBSTR(concat_zero_lowkey.lowkey_final,3,1)   
+        WHEN 'A' THEN  10             
+        WHEN 'B' THEN  11             
+        WHEN 'C' THEN  12             
+        WHEN 'D' THEN  13             
+        WHEN 'E' THEN  14             
+        WHEN 'F' THEN  15             
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (13 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,4,1)     
+        WHEN 'A' THEN  10               
+        WHEN 'B' THEN  11               
+        WHEN 'C' THEN  12               
+        WHEN 'D' THEN  13               
+        WHEN 'E' THEN  14               
+        WHEN 'F' THEN  15               
+        WHEN '0' THEN  0               
+        WHEN '1' THEN  1               
+        WHEN '2' THEN  2               
+        WHEN '3' THEN  3               
+        WHEN '4' THEN  4               
+        WHEN '5' THEN  5               
+        WHEN '6' THEN  6               
+        WHEN '7' THEN  7               
+        WHEN '8' THEN  8               
+        WHEN '9' THEN  9               
+        END) * power(16,cast (12 as bigint)) +          
+       (CASE SUBSTR(concat_zero_lowkey.lowkey_final,5,1)     
+        WHEN 'A' THEN  10               
+        WHEN 'B' THEN  11               
+        WHEN 'C' THEN  12               
+        WHEN 'D' THEN  13               
+        WHEN 'E' THEN  14               
+        WHEN 'F' THEN  15               
+        WHEN '0' THEN  0               
+        WHEN '1' THEN  1               
+        WHEN '2' THEN  2               
+        WHEN '3' THEN  3               
+        WHEN '4' THEN  4               
+        WHEN '5' THEN  5               
+        WHEN '6' THEN  6               
+        WHEN '7' THEN  7               
+        WHEN '8' THEN  8               
+        WHEN '9' THEN  9               
+        END) * power(16,cast (11 as bigint)) +          
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,6,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (10 as bigint)) +        
+       (CASE SUBSTR(concat_zero_lowkey.lowkey_final,7,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (9 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,8,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (8 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,9,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (7 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,10,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (6 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,11,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (5 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,12,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (4 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,13,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (3 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,14,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (2 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,15,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (1 as bigint)) +        
+          (CASE SUBSTR(concat_zero_lowkey.lowkey_final,16,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (0 as bigint)) as lowkey_decimal,concat_zero_lowkey.*
+		FROM concat_zero_lowkey),	
+trim_highkey as (
+select TRIM(L '8' FROM HEX(highkey)) as trimmed_key,czl.lowkey_decimal,czl.table_name,czl.schema_name,czl.name,czl.partition_position,czl.partition_id,czl.partition_name,czl.db_partition_position,czl.num_of_rows,czl.is_compressed from SYSIBM.SYSCOLSTATS b inner join
+lowkey czl on czl.table_name=b.TBNAME and czl.name=b.name and czl.partition_position=b.partition and czl.schema_name=b.tbowner),
+concat_zero_highkey as( SELECT
+CASE (LENGTH(trim_highkey.trimmed_key))
+WHEN 1 THEN CONCAT('000000000000000',trim_highkey.trimmed_key)
+WHEN 2 THEN CONCAT('00000000000000',trim_highkey.trimmed_key)
+WHEN 3 THEN CONCAT('0000000000000',trim_highkey.trimmed_key)
+WHEN 4 THEN CONCAT('000000000000',trim_highkey.trimmed_key)
+WHEN 5 THEN CONCAT('00000000000',trim_highkey.trimmed_key)
+WHEN 6 THEN CONCAT('0000000000',trim_highkey.trimmed_key)
+WHEN 7 THEN CONCAT('000000000',trim_highkey.trimmed_key)
+WHEN 8 THEN CONCAT('00000000',trim_highkey.trimmed_key)
+WHEN 9 THEN CONCAT('0000000',trim_highkey.trimmed_key)
+WHEN 10 THEN CONCAT('000000',trim_highkey.trimmed_key)
+WHEN 11 THEN CONCAT('00000',trim_highkey.trimmed_key)
+WHEN 12 THEN CONCAT('0000',trim_highkey.trimmed_key)
+WHEN 13 THEN CONCAT('000',trim_highkey.trimmed_key)
+WHEN 14 THEN CONCAT('00',trim_highkey.trimmed_key)
+WHEN 15 THEN CONCAT('0',trim_highkey.trimmed_key)
+END as highkey_final,trim_highkey.* from trim_highkey)
+SELECT 
+		$data.sourceAttributes.dataplace_id$ as dataplace_id,
+		NULLIF(1,1) as schema_id,
+		$data.sourceAttributes.dataplace_component_type_id$ as dataplace_component_type_id,
+		czh.schema_name,
+		czh.table_name,
+		czh.partition_id,
+		czh.partition_name,
+		czh.partition_position,
+		czh.db_partition_position,
+		czh.num_of_rows,
+		czh.is_compressed,
+		czh.lowkey_decimal as low_value,
+		(CASE SUBSTR(concat_zero_highkey.highkey_final,1,1)     
+        WHEN 'A' THEN  10               
+        WHEN 'B' THEN  11               
+        WHEN 'C' THEN  12               
+        WHEN 'D' THEN  13               
+        WHEN 'E' THEN  14               
+        WHEN 'F' THEN  15               
+        WHEN '0' THEN  0                 
+        WHEN '1' THEN  1                 
+        WHEN '2' THEN  2                 
+        WHEN '3' THEN  3                 
+        WHEN '4' THEN  4                 
+        WHEN '5' THEN  5                 
+        WHEN '6' THEN  6                 
+        WHEN '7' THEN  7                 
+        WHEN '8' THEN  8                 
+        WHEN '9' THEN  9                 
+        END) * power(16,cast (15 as bigint)) +            
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,2,1)   
+        WHEN 'A' THEN  10             
+        WHEN 'B' THEN  11             
+        WHEN 'C' THEN  12             
+        WHEN 'D' THEN  13             
+        WHEN 'E' THEN  14             
+        WHEN 'F' THEN  15             
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (14 as bigint)) +        
+       (CASE SUBSTR(concat_zero_highkey.highkey_final,3,1)   
+        WHEN 'A' THEN  10             
+        WHEN 'B' THEN  11             
+        WHEN 'C' THEN  12             
+        WHEN 'D' THEN  13             
+        WHEN 'E' THEN  14             
+        WHEN 'F' THEN  15             
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (13 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,4,1)     
+        WHEN 'A' THEN  10               
+        WHEN 'B' THEN  11               
+        WHEN 'C' THEN  12               
+        WHEN 'D' THEN  13               
+        WHEN 'E' THEN  14               
+        WHEN 'F' THEN  15               
+        WHEN '0' THEN  0               
+        WHEN '1' THEN  1               
+        WHEN '2' THEN  2               
+        WHEN '3' THEN  3               
+        WHEN '4' THEN  4               
+        WHEN '5' THEN  5               
+        WHEN '6' THEN  6               
+        WHEN '7' THEN  7               
+        WHEN '8' THEN  8               
+        WHEN '9' THEN  9               
+        END) * power(16,cast (12 as bigint)) +          
+       (CASE SUBSTR(concat_zero_highkey.highkey_final,5,1)     
+        WHEN 'A' THEN  10               
+        WHEN 'B' THEN  11               
+        WHEN 'C' THEN  12               
+        WHEN 'D' THEN  13               
+        WHEN 'E' THEN  14               
+        WHEN 'F' THEN  15               
+        WHEN '0' THEN  0               
+        WHEN '1' THEN  1               
+        WHEN '2' THEN  2               
+        WHEN '3' THEN  3               
+        WHEN '4' THEN  4               
+        WHEN '5' THEN  5               
+        WHEN '6' THEN  6               
+        WHEN '7' THEN  7               
+        WHEN '8' THEN  8               
+        WHEN '9' THEN  9               
+        END) * power(16,cast (11 as bigint)) +          
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,6,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (10 as bigint)) +        
+       (CASE SUBSTR(concat_zero_highkey.highkey_final,7,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (9 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,8,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (8 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,9,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (7 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,10,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (6 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,11,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (5 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,12,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (4 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,13,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (3 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,14,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (2 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,15,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (1 as bigint)) +        
+          (CASE SUBSTR(concat_zero_highkey.highkey_final,16,1) 
+        WHEN 'A' THEN  10           
+        WHEN 'B' THEN  11           
+        WHEN 'C' THEN  12           
+        WHEN 'D' THEN  13           
+        WHEN 'E' THEN  14           
+        WHEN 'F' THEN  15           
+        WHEN '0' THEN  0             
+        WHEN '1' THEN  1             
+        WHEN '2' THEN  2             
+        WHEN '3' THEN  3             
+        WHEN '4' THEN  4             
+        WHEN '5' THEN  5             
+        WHEN '6' THEN  6             
+        WHEN '7' THEN  7             
+        WHEN '8' THEN  8             
+        WHEN '9' THEN  9             
+        END) * power(16,cast (0 as bigint)) as high_value,
+		concat(concat('{"name":"',czh.name),'"}') as additional_info
+		FROM concat_zero_highkey czh
+>>
+
+stagingInsert_PartitionsMetadataFromSource(data)::=<<
+insert into staging.partitions_info_from_dataplace_$data.resourceId$(dataplace_id, schema_id, dataplace_component_type_id,
+schema_name,table_name, partition_id, partition_name, partition_position, db_partition_position, num_of_rows, is_compressed, low_value, high_value,
+ additional_info)
+values(?,?,?,?,?,?,?,?,?,?,?,?,?,?::json)
+>>
+
+
+query_dba_partition_columns_info(data)::=<<
+WITH tmp AS (
+   SELECT
+    TBCREATOR AS schemaname,
+	  TBNAME AS tablename,
+    NAME AS columnname,
+    COLNO
+    FROM SYSIBM.SYSCOLUMNS
+    where TBCREATOR IN ($data.sourceAttributes.schema_list$) and PARTKEY_COLSEQ>0
+)
+SELECT $data.sourceAttributes.dataplace_id$ as dataplace_id,
+       NULLIF(1,1) as schema_id,
+       $data.sourceAttributes.dataplace_component_type_id$ as dataplace_component_type_id,
+       trim(TBOWNER) as schema_name,
+       TBNAME AS table_name,
+       columnname AS column_name,
+       COLNO AS ordinal_position,
+       NULLIF(1,1) AS additional_info
+FROM (select distinct TBOWNER,TBNAME,NAME from SYSIBM.SYSCOLSTATS) d
+INNER JOIN tmp t
+ON t.schemaname = d.TBOWNER AND t.tablename = d.TBNAME AND t.columnname = d.NAME;
+>>
+
+stagingInsert_PartitionColumnsMetadataFromSource(data)::=<<
+insert into staging.partition_column_info_from_dataplace_$data.resourceId$(dataplace_id, schema_id, dataplace_component_type_id,
+schema_name,table_name, column_name, ordinal_position, additional_info)
+values(?,?,?,?,?,?,?,?)
+>>
+
+getPreviousCrawlId(map)::=<<
+$if(map.prev_crawl_id)$ '$map.prev_crawl_id$' $else$ NULLIF(1,1) $endif$
+>>
+
+getCrawlId(map)::=<<
+$if(map.crawl_id)$ '$map.crawl_id$' $else$ uuid_in((md5((random())::text))::cstring)$endif$
+>>
