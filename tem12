@@ -10,7 +10,11 @@ https://gist.github.com/sb1205/0e6636a6fe1c026da19465ee60fa45ff#file-templates_p
 
 Overall metrics for 3 tables:
 
- 
+ As a part of testng the features in qa env story, 
+worked on ingesting oracle source assets with and without partitions
+and also uo and asset level computes, 
+cureently working on ingested recon and metadata validations.
+
 
 THXFEES metrics for one partion (i.e partition no 15)
 
