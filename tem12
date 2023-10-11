@@ -1,6 +1,6 @@
 https://gist.github.com/SwaroopSittula/a78b496a0ee95a5abd9c021f7ec670a8
 https://gist.github.com/sb1205/d86a5409270ef36d9cad1ee1ee6d92c9#file-almaren
-
+($resolveContactJson(first(data.input_data.data).contact_info)$)
 https://gist.github.com/sb1205/41c645cad9df99dcba3b1e12bfd47765#file-query
 
 https://gist.github.com/sb1205/4a14bb8b90b9b0b09067e5585e5cdf6c#file-parition_almaren
