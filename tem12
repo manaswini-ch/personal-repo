@@ -2,6 +2,15 @@ https://gist.github.com/SwaroopSittula/a78b496a0ee95a5abd9c021f7ec670a8
 
 https/repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/8.2.0.jre8/mssql-jdbc-8.2.0.jre8.jar
 
+[15:46] Manasa Kandimalla
+import org.apache.spark.sql.SparkSession
+ 
+val spark: SparkSession = SparkSession.builder().enableHiveSupport().getOrCreate()
+ 
+val df = spark.read.format("jdbc").option("url", "").option("driver","").option("query", "").option("user", "").option("password", "").option("queryTimeout",s"""0""").option("fetchsize",s"""5000""").load()
+ 
+df.show(false)
+
 https://gist.github.com/manasa-kandimalla/6feaa06723b8ade7bc4402081a8b5210
 
 https://gist.github.com/sb1205/d86a5409270ef36d9cad1ee1ee6d92c9#file-almaren
