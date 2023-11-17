@@ -2,6 +2,16 @@ https://gist.github.com/SwaroopSittula/a78b496a0ee95a5abd9c021f7ec670a8
 
 https/repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/8.2.0.jre8/mssql-jdbc-8.2.0.jre8.jar
 
+
+import com.typesafe.config.{Config, ConfigFactory}
+import java.io.File
+ 
+val configPath = "" //provide a dbfs path in which application.conf is uploaded
+val config = ConfigFactory.parseFile(new File(configPath))
+val url: String = config.getString("com.modak.db.url")
+println ("URL: " + url)
+
+
 [15:46] Manasa Kandimalla
 import org.apache.spark.sql.SparkSession
  
