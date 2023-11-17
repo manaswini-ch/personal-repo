@@ -1,7 +1,7 @@
 https://gist.github.com/SwaroopSittula/a78b496a0ee95a5abd9c021f7ec670a8
 
 https/repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/8.2.0.jre8/mssql-jdbc-8.2.0.jre8.jar
-
+"spark.nabu.compute_engine_libs_path":"/dbfs/tmp/dev-v3-1-2-0/nabu/17001329078704491/0/application.conf"
 
 import com.typesafe.config.{Config, ConfigFactory}
 import java.io.File
