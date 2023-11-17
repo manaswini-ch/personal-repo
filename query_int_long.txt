@@ -1,0 +1,460 @@
+with datatype_mapping as (
+  	  		select
+          		lower(source_type) as source_type ,
+          		lower(intermediate_type) as intermediate_type ,
+      		    false as is_create_table,
+          		lower(destination_type) as destination_type ,
+          		lower(source_datatype_name) as source_datatype_name ,
+          		intermediate_datatype_name ,source_cast_type,
+          		intermediate_cast_type ,
+          		source_stg_function ,
+          		destination_datatype_name,
+          		intermediate_stg_function ,
+          		lower(datamovement_engine_type) as datamovement_engine_type
+          	from(
+             select *,row_number() over (partition by source_type ,source_datatype_name ) as rno
+             from nabu.datatype_mapping dmt
+          	 where lower(source_type) =lower('oracle') and
+          	 lower(intermediate_type) = lower('parquet') and
+    		 lower(destination_type) = 'bucket'
+          	 )a
+          	 where rno=1
+  ),
+  obj_details as(
+    select advance_option_details from nabu.advanced_options_object_details where data_movement_id= 553 and valid_to_ts ='9999-12-31' and object_id in (67426)
+  ),
+  exculde_columns as(
+    select unnest(string_to_array(btrim((column_options->>'excluded_column_ids'),'[||]'),','))::int as excluded_column_ids from
+    (      select (advance_option_details->'advanced_table_options'->'columns_options')::JSON as column_options from obj_details  )a
+    ),
+  ignore_datatypes as(
+       select coalesce (lower(ignore_data_types),' ') as data_types from (
+       select replace((json_array_elements(data_movement_additional_info->'flow_details'->'ignore_data_types'))::text,'"','') as ignore_data_types
+       from nabu.data_movement_physical
+       where data_movement_id = 553 and valid_to_ts='9999-12-31'
+       union
+      select source_datatype_name as ignore_data_types
+      from nabu.user_defined_trans_for_unsupported_datatype
+      where advanced_options_sub_type_id =16 and data_movement_id = 553 and valid_to_ts='9999-12-31'
+       )a
+  ),
+  column_metadata as (
+  select a.*,
+  		case when cdc.column_id is not null then true else false end as is_cdc_col,
+          b.advanced_options_sub_type_id,
+          b.additional_info
+   from
+    (
+  	select
+  		cmp.column_name,data_length,cmp.ordinal_position,
+  		case when data_scale is null then 0
+  		    else data_scale
+  		end as data_scale,data_precision,
+  		lower(data_type) as metadata_datatype,
+  		cmp.is_nullable,cmp.column_id,cmp.table_id,cmp.table_name,cmp.schema_name,
+  		 regexp_replace(lower(trim(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(column_name,'=','_eq_'),'^','_ccf_'),'~','_til_'),',','_com_'),';','_sc_'),']','_csb_'),'[','_osb_'),'`','_bq_'),'>','_gt_'),'<','_lt_'),'$','_dlr_' ),'"','') ,'|','_pe_' ),'}','_rbr_' ),'{','_lbr_' ),'#','_hash_' ) ,'*','_astk_' ) ,'(','_op_' ) , ')','_cp_' ) ,'@','_at_' ),'.','_dot_' ),' ','_' ),'&','_amp_' ),'+','_pls_' ),'-','_hyp_' ),'?','_qtn_' ),':','_cln_' ),'/','_fs_' ),'''','_sq_' ),'%','_prst_' ),'!','_exp_'))),'^[_]+', '') as field_name,
+  		case
+  			when data_type ~* 'INTERVAL' then regexp_replace(lower(data_type),'[^A-Za-z ]', '', 'g')
+  			when data_type like 'array%' and dp.dataplace_sub_component_id =7  then regexp_replace(lower(data_type), '^(\w+)\W.*','\1','g')
+            when data_type like 'struct%' and dp.dataplace_sub_component_id =7 then regexp_replace(lower(data_type), '^(\w+)\W.*','\1','g')
+            when data_type like 'map%' and dp.dataplace_sub_component_id =7 then regexp_replace(lower(data_type), '^(\w+)\W.*','\1','g')
+            when data_type ~* 'varchar*' and dp.dataplace_sub_component_id =7 then 'varchar'
+            when data_type ~* 'decimal*' and dp.dataplace_sub_component_id = 7 then 'decimal'
+  			else lower(data_type)
+  		end as data_type,
+		case
+		when ('oracle' = lower('oracle')) and data_type='NUMBER' and (data_precision between 1 and 9) and data_scale=0 then
+		true else false end as p19s0,
+		case
+		when ('oracle' = lower('oracle')) and data_type='NUMBER' and (data_precision between 10 and 18) and data_scale=0 then true else false end as p1018s0,
+		case
+		when ('oracle' = lower('oracle')) and data_type='NUMBER' and (data_precision is NULL) and (data_scale is NULL) then true else false end as pnn
+  	from nabu.dataplace_column_metadata_physical cmp left outer join nabu.dataplace_physical dp on cmp.dataplace_id = dp.dataplace_id where cmp.table_id = 67426  and cmp.valid_to_ts='9999-12-31'
+  and 
+     data_type is not null
+    and cmp.column_id not in (select excluded_column_ids from exculde_columns)
+    ) a
+    left outer join
+         (
+         select data_movement_id,
+                 lower(source_datatype_name) AS source_datatype,
+                 advanced_options_sub_type_id,
+                 additional_info
+          from nabu.user_defined_trans_for_unsupported_datatype
+          where data_movement_id = 553
+            and valid_to_ts='9999-12-31'
+        ) b on a.data_type = b.source_datatype
+        left outer join(
+        select json_array_elements_text(advance_option_details->'advanced_table_options'->'CDC'->'columns_ids')::int as column_id
+		from nabu.advanced_options_object_details aood where data_movement_id =553 and object_id =67426 and valid_to_ts ='9999-12-31'
+        )cdc
+        on a.column_id=cdc.column_id
+   ),
+   source_level_casting as(
+      select (modified_columns ->>'column_id')::int as column_id,
+      trim(convert_from(decode(modified_columns ->'column_info'->>'source_casting_exp','base64'), 'UTF8')) as sql_expr,
+      lower(modified_columns ->'column_info'->>'destination_column_type') as destination_column_type,
+      (modified_columns ->'column_info'->>'destination_column_name') as destination_column_name
+      from(
+        select json_array_elements((advance_option_details->'advanced_table_options'->'columns_options'-> 'modified_columns')) :: json as modified_columns from obj_details
+      )modified_details
+         ),
+  initial_column_mapping as (
+  select
+  	a.p19s0,a.p1018s0,a.pnn,a.column_name,a.data_type,a.data_length,a.ordinal_position,a.is_nullable,table_name,schema_name , a.metadata_datatype, a.column_id,a.table_id,
+  	source_type,intermediate_type,datamovement_engine_type ,b.source_datatype_name,source_cast_type,
+	b.intermediate_datatype_name as intermediate_datatype_name,
+  	case
+  	           when(a.advanced_options_sub_type_id = 17) then 'UserText'
+  	           when(a.advanced_options_sub_type_id = 31) then 'AsIs'
+  	           when(a.advanced_options_sub_type_id = 14) then 'AsIs'
+  	           when(a.advanced_options_sub_type_id = 15) then 'ReplaceWithNull'
+  	else b.source_stg_function
+  	end as source_stg_function,
+  	case when (a.advanced_options_sub_type_id = 17) then a.additional_info ->> 'target_value' else null end as user_text,
+  	a.data_scale,a.data_precision,
+  	    'adls_gen2' as destination_type,
+  		case
+  		   when (b.source_datatype_name = lower('NUMBER')) then
+  		   (
+  		      CASE
+  		         when (a.data_scale = 0 and (a.data_precision between 1 and 9)) then 'int'
+  		         when (a.data_scale = 0 and (a.data_precision between 10 and 18)) then 'long'
+  		         when (a.data_scale is null and (a.data_precision is null)) then 'double'
+  				 else concat('decimal(',a.data_precision,',',a.data_scale,')')
+  		      END
+  		   )
+  		   when (b.source_datatype_name = lower('FLOAT')) then
+  		   (
+  		   	  case
+  		   	   	 when true then 'float'
+  		   	  END
+  		   )
+  		   when (b.source_datatype_name = lower('DOUBLE')) then
+  		   (
+  		   	  case
+  		   	   	 when true then 'double'
+  		   	  END
+  		   )
+  		   when (b.source_datatype_name = lower('BIGINT')) then
+  		   (
+  		   	  case
+  		   	   	 when true then 'long'
+  		   	  END
+  		   )
+  		   when (b.source_datatype_name = lower('LONG')) then
+  		   (
+  		   	  case
+  		   	   	 when true then 'long'
+  		   	  END
+  		   )
+  		   else
+  		   b.destination_datatype_name
+  		end as destination_datatype_name,
+    	case when(a.advanced_options_sub_type_id in (14,15,17,31)) then 'AnyToString'
+    	when b.intermediate_stg_function = 'AsIs' then 'parquet_AsIs' else case
+	when (b.source_datatype_name = lower('NUMBER')) then
+	(
+		CASE
+			when (data_scale=0 and (data_precision between 1 and 9)) then 'OracleNumberToInt'
+            when (data_scale=0 and (data_precision between 10 and 18)) then 'OracleNumberToLong'
+            when ((data_scale is null or data_scale=0) and (data_precision is null or data_precision=0)) then 'OracleNumberToDouble'
+            else 'AsIs'
+        END
+	)
+	when (b.source_datatype_name = lower('FLOAT')) then
+    (
+  	    CASE
+   	   	  	when true then 'OracleFloatToFloat'
+   	   	END
+   	)
+	when (b.source_datatype_name = lower('DOUBLE')) then
+    (
+  	    CASE
+   	   	  	when true then 'OracleDoubleToDouble'
+   	   	END
+   	)
+	when (b.source_datatype_name = lower('BIGINT')) then
+    (
+  	    CASE
+   	   	  	when true then 'OracleBigintToLong'
+   	   	END
+   	)
+	when (b.source_datatype_name = lower('LONG')) then
+    (
+  	    CASE
+   	   	  	when true then 'OracleLongToLong'
+   	   	END
+   	)
+	else
+	b.intermediate_stg_function
+end end as intermediate_stg_function,
+    	case
+    		when (b.source_datatype_name ~* 'interval year') then 'interval_year_to_month_to_varchar'
+    	    when (b.source_datatype_name ~* 'interval day') then 'interval_day_to_second_to_varchar'
+    	    when (b.source_datatype_name in ('rowid','urowid','xmltype'))then concat(b.source_datatype_name,'_to_varchar')
+    		else null
+    	end as inconsistent_datatype,
+  	a.field_name, a.field_name as intermediate_field_name, a.is_cdc_col
+  from column_metadata as a left join datatype_mapping as b
+  on a.data_type = b.source_datatype_name
+  where a.ordinal_position is not null
+ -- and b.datamovement_engine_type = lower('Spark')
+  ),
+  partition_columns as(
+  select
+  case when(columns_list->>'renamed_column' = '')
+          then columns_list->>'column_name'
+          else columns_list->>'renamed_column'
+  end as final_column_name,
+  (columns_list->>'column_id')::int as column_id
+  from(
+  select json_array_elements(((advance_option_details->>'advanced_table_options')::json->>'table_partitions')::json) as columns_list from nabu.advanced_options_object_details aood
+  where data_movement_id= 553 and valid_to_ts ='9999-12-31' and object_id in (67426)
+  )table_partitions_data
+  )
+  select a.p19s0,a.p1018s0,a.pnn,a.intermediate_stg_function,false::boolean as is_virtual,a.column_id,
+    case when slc.column_id is not null then true else false end as is_source_casting_enabled ,
+    case when pc.column_id is not null then true else false end as is_partitioned_col, a.column_name,
+    replace(a.column_name,'''','''''')as replaced_column_name,a.data_type,a.data_length,a.ordinal_position,a.is_nullable,table_name,schema_name ,false as is_mysql,
+    false as is_bigquery,false as is_source_hive,
+	a.source_type,a.source_datatype_name,source_cast_type,a.intermediate_datatype_name,a.table_id,
+    case when slc.column_id is not null then
+    (
+    case
+            when slc.sql_expr like '%)____%' then slc.sql_expr
+            else concat (slc.sql_expr,' as ',slc.destination_column_name)
+        end
+    )
+    --when (c.intermediate_stg_function = 'parquet_inconsistentInteger_convert' ) then 'AnyToStringConvert'
+    else coalesce(c.source_stg_function,a.source_stg_function)
+    end as source_stg_function,
+	a.data_scale,
+	case when slc.column_id is not null then
+		(
+		case when a.data_precision <= 38 then a.data_precision
+			else 38
+		end
+		)
+		else a.data_precision
+	end as data_precision,
+	case when a.data_precision = 0 then true else false end as is_precision,
+    case when a.data_scale <= 37 then true else false end as is_precision_scale,
+    case when a.destination_type='redshift_relational' then true else false end as is_redshift_relational_destination,
+	case  when slc.column_id is not null then
+            (
+            case
+	        when slc.destination_column_type in('decimal','numeric') then
+	        (
+	        case when a.data_precision <=38 then concat(slc.destination_column_type,'(',a.data_precision,',',a.data_scale,')')
+	        	else concat(slc.destination_column_type,'(38,',a.data_scale,')')
+	        end
+	        )
+            when slc.destination_column_type in ('varchar','char') then
+            (
+            case
+	            when data_length is null then concat( slc.destination_column_type,'(255)')
+            	else concat( slc.destination_column_type,'(',a.data_length ,')')
+            end
+            )
+            else (slc.destination_column_type)
+            end
+            )
+            when c.destination_datatype_name ='STRING/DECIMAL'  then
+            (
+            case
+            	 when a.data_precision =0 then concat('DECIMAL','(',38,',',a.data_scale,')')
+            	 when a.data_precision <=38 and a.data_scale <=37 then concat('DECIMAL','(',a.data_precision,',',a.data_scale,')')
+                 else 'STRING'
+            end
+            )
+            when c.destination_datatype_name ='STRING/DECIMAL/INTEGER'  then
+            (
+            CASE
+         when (a.data_scale = 0 and (a.data_precision between 0 and 2)) then 'TINYINT'
+         when (a.data_scale = 0 and (a.data_precision between 3 and 4)) then 'SMALLINT'
+         when (a.data_scale = 0 and (a.data_precision between 5 and 9)) then 'INT'
+         when (a.data_scale = 0 and (a.data_precision between 10 and 17)) then 'BIGINT'
+         when (a.data_scale = 0 and (a.data_precision between 18 and 38)) then concat('DECIMAL','(',a.data_precision,',',a.data_scale,')')
+         when (a.data_scale <= 37 and (a.data_precision <= 38)) then concat('DECIMAL','(',a.data_precision,',',a.data_scale,')')
+         else 'STRING' end
+		 )
+		 when c.destination_datatype_name ='INTEGER/LONG/DOUBLE/DECIMAL'  then
+            (
+            CASE
+         when (a.data_scale = 0 and (a.data_precision between 1 and 9)) then 'INT'
+         when (a.data_scale = 0 and (a.data_precision between 10 and 18)) then 'LONG'
+         else  'DOUBLE'
+         --else concat('DECIMAL','(',a.data_precision,',',a.data_scale,')')
+     end
+     )
+
+                when ('oracle' = 'oracle') then
+                (
+                    case
+                        when data_type ~* 'time zone' and c.option_number = 0 and 'azure_synapse' in('bigquery','redshift','azure_synapse','snowflake') then 'VARCHAR(50)'
+                        when data_type ~* 'time zone' and c.option_number = 0 and 'azure_synapse' in('hive') then 'STRING'
+                        else coalesce(c.destination_datatype_name,a.destination_datatype_name)
+                    end
+                )
+                when ('oracle' = 'postgres') then
+                (
+                    case
+                        when data_type ~* 'timestamp with time zone' and c.option_number = 0 and 'azure_synapse' in('bigquery','redshift','azure_synapse','snowflake') then 'VARCHAR(50)'
+                        when data_type ~* 'timestamp with time zone' and c.option_number = 0 and 'azure_synapse' in('hive') then 'STRING'
+                        else coalesce(c.destination_datatype_name,a.destination_datatype_name)
+                    end
+                )
+                when ('oracle' = 'sql_server') then
+                (
+                    case
+                        when data_type ~* 'datetimeoffset' and c.option_number = 0 and 'azure_synapse' in('bigquery','redshift','azure_synapse','snowflake') then 'VARCHAR(50)'
+                        when data_type ~* 'datetimeoffset' and c.option_number = 0 and 'azure_synapse' in('hive') then 'STRING'
+                        else coalesce(c.destination_datatype_name,a.destination_datatype_name)
+                    end
+                )
+            else coalesce(c.destination_datatype_name,a.destination_datatype_name)
+            end as destination_datatype_name,
+
+			case when slc.column_id is not null then
+            (
+    		case when slc.destination_column_type in('double','double precision') then 'ParquetStringToDoubleConvert'
+    			when slc.destination_column_type in('decimal','money','numeric','smallmoney','number') then 'ParquetStringToDecimalConvert'
+    			when slc.destination_column_type in('int','integer','int64') then 'ParquetStringToIntConvert'
+    			when slc.destination_column_type in('timestamp','datetime2') then 'ParquetStringToTimestampConvert'
+    			when slc.destination_column_type = 'bigint' then 'ParquetStringToBigIntConvert'
+    			when slc.destination_column_type = 'tinyint' then 'ParquetStringToTinyIntConvert'
+    			when slc.destination_column_type = 'smallint' then 'ParquetStringToSmallIntConvert'
+    			when slc.destination_column_type in('float','float64','real') then 'ParquetStringToFloatConvert'
+    			when slc.destination_column_type in('char','nchar') then 'ParquetStringToCharConvert'
+    			when slc.destination_column_type in('varchar','nvarchar') then 'ParquetStringToVarcharConvert'
+    			when slc.destination_column_type in('binary','varbinary','bytes') then 'ParquetStringToBinaryConvert'
+    			when slc.destination_column_type = 'date' then 'ParquetStringToDateConvert'
+    			when slc.destination_column_type in('string','text') then 'AnyToString'
+    			when slc.destination_column_type in('boolean','bool') then 'AnyToBoolean'
+    			when slc.destination_column_type = 'array' then 'AnyToArray'
+    			when slc.destination_column_type = 'map' then 'AnyToMap'
+    			when slc.destination_column_type = 'struct' then 'AnyToStruct'
+                else coalesce(c.intermediate_stg_function,a.intermediate_stg_function)
+                end
+            )
+			when (c.intermediate_stg_function = 'parquet_AsIs' and 'oracle' = 'oracle' and 'adls_gen2' = 'adls_gen2') then (
+                case
+				when (a.data_scale = 0 and (a.data_precision between 1 and 9)) then 'OracleNumberToInt'
+				when (a.data_scale = 0 and (a.data_precision between 10 and 18)) then 'OracleNumberToLong'
+				when ((a.data_scale is null or a.data_scale=0) and (a.data_precision is null or a.data_precision=0)) then 'OracleNumberToDouble'
+				else 'parquet_AsIs'
+                 end
+            )
+            when coalesce(c.intermediate_stg_function,a.intermediate_stg_function) = 'AsIs' then lower('parquet')||'_AsIs'
+            when (c.intermediate_stg_function = 'parquet_inconsistentInteger_convert') then (
+                case when (data_scale=0 and (data_precision between 0 and 2)) then 'ParquetStringToTinyIntConvert'
+                 when (data_scale=0 and (data_precision between 3 and 4)) then 'ParquetStringToSmallIntConvert'
+                 when (data_scale=0 and (data_precision between 5 and 9)) then 'ParquetStringToIntConvert'
+                 when (data_scale=0 and (data_precision between 10 and 17)) then 'ParquetStringToBigIntConvert'
+                 when (data_scale=0 and (data_precision between 18 and 38)) then 'ParquetStringToDecimalConvert'
+                 when (data_scale <= 37 and (data_precision <= 38)) then a.intermediate_stg_function else 'parquet_AsIs'
+                 end
+            )
+            else coalesce(c.intermediate_stg_function,a.intermediate_stg_function)
+            end as intermediate_stg_function,
+        	a.inconsistent_datatype,
+	--coalesce(c.destination_datatype_name,a.destination_datatype_name) as destination_datatype_name,
+    	--case when coalesce(c.intermediate_stg_function,a.intermediate_stg_function) = 'AsIs' then lower('parquet')||'_AsIs'
+        --else coalesce(c.intermediate_stg_function,a.intermediate_stg_function) end as intermediate_stg_function,a.inconsistent_datatype,
+	--renaming of columns options logic
+	case
+	    when((true = false) and (true =false)  and a.column_id in (select column_id from source_level_casting) )
+        then (select slc.destination_column_name from source_level_casting slc where slc.column_id = a.column_id)
+	    when pc.column_id is not null then pc.final_column_name
+	    else a.field_name
+	end as field_name,
+	case
+		when ('oracle' = 'oracle') then
+        (
+            case
+                when data_type ~* 'time zone' and c.option_number = 0 then true
+                else false
+            end
+        )
+		when ('oracle' in ('postgres','redshift','redshift_relational') and a.destination_type!='hive') then
+        (
+        	case
+                when data_type ~* 'timestamp with time zone' and c.option_number = 0 then true
+                else false
+            end
+        )
+        when ('oracle' = 'sql_server') then
+        (
+        	case
+                when data_type = 'datetimeoffset' and c.option_number = 0 then true
+                else false
+            end
+        )
+        else false
+	end as isTimeZone , user_text, a.is_cdc_col
+  from initial_column_mapping a left outer join (select a.*,lower(b.engine_type) as datamovement_engine_type from nabu.user_defined_trans_for_inconsistent_datatype a inner join nabu.engine_lookup b on a.engine_id = b.engine_id where data_movement_id = 553 and valid_to='9999-12-31' ) c
+  on a.source_type = c.source_type
+  and a.intermediate_type = c.intermediate_type
+  and a.destination_type = c.destination_type
+  and a.datamovement_engine_type = c.datamovement_engine_type
+  and a.inconsistent_datatype = c.inconsistent_datatype
+  left outer join partition_columns pc on a.column_id = pc.column_id
+  left outer join source_level_casting slc on a.column_id = slc.column_id and slc.sql_expr !=''
+union all
+  select  a.p19s0,a.p1018s0,a.pnn,a.intermediate_stg_function,false::boolean as is_virtual,0 as column_id,
+    false as is_source_casting_enabled ,
+    false as is_partitioned_col, a.column_name,
+    replace(a.column_name,'''','''''')as replaced_column_name,a.data_type,a.data_length,a.ordinal_position,a.is_nullable,table_name,schema_name ,false as is_mysql,
+    false as is_bigquery,false as is_source_hive,
+	a.source_type,a.source_datatype_name,source_cast_type,a.intermediate_datatype_name,a.table_id,
+    c.source_stg_function,
+	a.data_scale,
+	a.data_precision,
+	case when a.data_precision = 0 then true else false end as is_precision,
+    case when a.data_scale <= 37 then true else false end as is_precision_scale,
+    case when a.destination_type='redshift_relational' then true else false end as is_redshift_relational_destination,
+	c.destination_datatype_name,
+    c.intermediate_stg_function,
+    a.inconsistent_datatype,
+	--renaming of columns options logic
+	a.field_name||'_utc' as field_name,
+  false as isTimeZone, user_text, a.is_cdc_col
+  from initial_column_mapping a left outer join (select a.*,lower(b.engine_type) as datamovement_engine_type from nabu.user_defined_trans_for_inconsistent_datatype a inner join nabu.engine_lookup b on a.engine_id = b.engine_id where data_movement_id = 553 and valid_to='9999-12-31' ) c
+  on a.source_type = c.source_type
+  and a.intermediate_type = c.intermediate_type
+  and a.destination_type = c.destination_type
+  and a.datamovement_engine_type = c.datamovement_engine_type
+  and a.inconsistent_datatype = c.inconsistent_datatype
+  left outer join partition_columns pc on a.column_id = pc.column_id
+  left outer join source_level_casting slc on a.column_id = slc.column_id and slc.sql_expr !=''
+  where(
+	case
+		when ('oracle' = 'oracle') then
+        (
+            case
+                when data_type ~* 'time zone' and c.option_number = 0 then true
+                else false
+            end
+        )
+		when ('oracle'  in ('postgres','redshift','redshift_relational') and a.destination_type!='hive') then
+        (
+        	case
+                when data_type ~* 'timestamp with time zone' and c.option_number = 0 then true
+                else false
+            end
+        )
+        when ('oracle' = 'sql_server') then
+        (
+        	case
+                when data_type = 'datetimeoffset' and c.option_number = 0 then true
+                else false
+            end
+        )
+        else false
+	end ) = true
+  group by a.p19s0,a.p1018s0,a.pnn,a.intermediate_stg_function,a.column_name,a.data_type,a.data_length,a.ordinal_position,a.is_nullable,table_name,schema_name,a.source_type,a.source_datatype_name,source_cast_type,a.intermediate_datatype_name,a.inconsistent_datatype,a.table_id,c.source_stg_function,
+  a.data_scale,a.data_precision,a.destination_type,c.destination_datatype_name,c.intermediate_stg_function,a.intermediate_stg_function,a.field_name,c.option_number,a.user_text,a.is_cdc_col
+  order by ordinal_position
+  
+  
