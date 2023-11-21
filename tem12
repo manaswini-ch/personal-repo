@@ -1,5 +1,72 @@
 https://gist.github.com/SwaroopSittula/a78b496a0ee95a5abd9c021f7ec670a8
 
+when c.destination_datatype_name ='INTEGER/LONG/DOUBLE/DECIMAL'  then
+            (
+            CASE
+         when (a.data_scale = 0 and (a.data_precision between 1 and 9)) then 'INT'
+         when (a.data_scale = 0 and (a.data_precision between 10 and 18)) then 'LONG'
+         when ((a.data_scale is null or a.data_scale=0) and (a.data_precision is null or a.data_precision=0)) then 'DOUBLE'
+         else concat('DECIMAL','(',a.data_precision,',',a.data_scale,')')
+     end
+
+when (b.source_datatype_name ~* 'number') then 'number_to_varchar'
+
+{
+  "options": [
+    {
+      "description": "This option is convert it to String to maintain Precision/Scale",
+      "option_number": 0,
+      "source_stg_function": "OracleDecimalToStringConvert",
+      "destination_datatype_name": "STRING",
+      "intermediate_stg_function": "AsIs"
+    },
+    {
+      "description": "String is intermediate,Converting to Double might lose precision/scale",
+      "option_number": 1,
+      "source_stg_function": "OracleDecimalToStringConvert",
+      "destination_datatype_name": "DOUBLE",
+      "intermediate_stg_function": "ParquetStringToDoubleConvert"
+    },
+    {
+      "description": "Pipeline might fail if precision/scale cross 37",
+      "option_number": 2,
+      "source_stg_function": "OracleDecimalToStringConvert",
+      "destination_datatype_name": "DECIMAL",
+      "intermediate_stg_function": "ParquetStringToDecimalConvert"
+    },
+    {
+      "description": "Binary Double at Source Level Casting,and target Converts to Double might lose precision/scale",
+      "option_number": 3,
+      "source_stg_function": "OracleDecimalToBinaryDouble",
+      "destination_datatype_name": "DOUBLE",
+      "intermediate_stg_function": "AsIs"
+    },
+    {
+      "description": "Default option is convert it to String/Decimal based on the Precision and Scale",
+      "option_number": 4,
+      "source_stg_function": "OracleDecimalInconsistentDefaultConvert",
+      "destination_datatype_name": "STRING/DECIMAL",
+      "intermediate_stg_function": "parquet_inconsistentdefault_convert"
+    },
+    { 
+      "description": "Default option is convert it to String/Decimal/Integer based on the Precision and Scale",
+      "option_number": 5,
+      "source_stg_function": "OracleDecimalToStringConvert",
+      "destination_datatype_name": "STRING/DECIMAL/INTEGER",
+      "intermediate_stg_function": "parquet_inconsistentInteger_convert"
+    },
+    { 
+	  "default": true,
+      "description": "Default option is convert it to INTEGER/LONG/DOUBLE/DECIMAL based on the Precision and Scale",
+      "option_number": 6,
+      "source_stg_function": "OracleDecimalToStringConvert",
+      "destination_datatype_name": "INTEGER/LONG/DOUBLE/DECIMAL",
+      "intermediate_stg_function": "parquet_inconsistentInteger_convert"
+    }
+  ],
+  "default_option": 6
+}
+
 https/repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/8.2.0.jre8/mssql-jdbc-8.2.0.jre8.jar
 "spark.nabu.compute_engine_libs_path":"/dbfs/tmp/dev-v3-1-2-0/nabu/17001329078704491/0/application.conf"
 
