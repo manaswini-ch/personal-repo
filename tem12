@@ -67,6 +67,8 @@ when (b.source_datatype_name ~* 'number') then 'number_to_varchar'
   "default_option": 6
 }
 
+{"description": "This option is convert it to String", "option_number": 1, "source_stg_function": "OracleTimestampConvert", "destination_datatype_name": "VARCHAR(30)", "intermediate_stg_function": "AsIs"}
+
 https/repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/8.2.0.jre8/mssql-jdbc-8.2.0.jre8.jar
 "spark.nabu.compute_engine_libs_path":"/dbfs/tmp/dev-v3-1-2-0/nabu/17001329078704491/0/application.conf"
 
