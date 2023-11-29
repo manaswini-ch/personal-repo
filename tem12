@@ -1,5 +1,8 @@
 https://gist.github.com/SwaroopSittula/a78b496a0ee95a5abd9c021f7ec670a8
 
+spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs=false
+spark.sql.sources.commitProtocolClass=org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol
+
 when c.destination_datatype_name ='INTEGER/LONG/DOUBLE/DECIMAL'  then
             (
             CASE
